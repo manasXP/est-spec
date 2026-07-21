@@ -1,0 +1,2523 @@
+openapi: 3.1.0
+info:
+  title: Estatly Admin Panel API
+  version: 0.7.0
+  description: >
+    REST contract for the admin panel (draft). Narrative, conventions, and
+    open questions: public-api.md beside this file. Role capabilities are
+    enforced from Cognito JWT claims; 403 code capability_required on
+    insufficient role. Money-posting endpoints require an Idempotency-Key
+    header. Book entries are append-only; corrections are reversals.
+servers:
+  - url: https://api.estatly.in/v1
+    description: Production (placeholder host; admin routes may live behind a separate hostname)
+
+security:
+  - bearerAuth: []
+
+paths:
+  # ── Members ────────────────────────────────────────────────────────────
+  /members:
+    get:
+      operationId: listMembers
+      summary: List members
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [pending, active, suspended, ceased, all], default: all }
+        - name: q
+          in: query
+          schema: { type: string, description: Search by name/email/phone/member_id }
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200": { $ref: "#/components/responses/MemberPage" }
+    post:
+      operationId: createMember
+      summary: Create a member
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MemberInput" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Member" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /members/{memberId}:
+    parameters: [{ $ref: "#/components/parameters/memberId" }]
+    get:
+      operationId: getMember
+      summary: One member
+      responses:
+        "200":
+          description: The member.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Member" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      operationId: updateMember
+      summary: Update member details or status
+      description: >
+        Status transitions follow the lifecycle pending → active ⇄ suspended
+        → ceased. Transition to ceased requires cessation_reason (422
+        otherwise); ceased is terminal (409 on any further status change).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MemberInput" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Member" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  # ── Projects ───────────────────────────────────────────────────────────
+  /projects:
+    get:
+      operationId: listProjects
+      summary: List projects
+      parameters:
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: Page of projects.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/Project" }
+    post:
+      operationId: createProject
+      summary: Create a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectInput" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Project" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /projects/{projectId}:
+    parameters: [{ $ref: "#/components/parameters/projectId" }]
+    get:
+      operationId: getProject
+      summary: One project
+      responses:
+        "200":
+          description: The project.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Project" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      operationId: updateProject
+      summary: Update a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectInput" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Project" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /projects/{projectId}/committee:
+    parameters: [{ $ref: "#/components/parameters/projectId" }]
+    get:
+      operationId: getProjectCommittee
+      summary: The project's PC (Project Committee)
+      responses:
+        "200":
+          description: Current composition.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectCommittee" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      operationId: setProjectCommittee
+      summary: Replace the PC composition (EC action)
+      description: >
+        Records tenure history internally (effective from/to per seat, like EC
+        roles). Every listed member must be active and hold an ownership in
+        the project; the chair must be among the members. 422 code
+        pc_member_ineligible otherwise.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [chair_member_id, member_ids]
+              properties:
+                chair_member_id: { type: string }
+                member_ids:
+                  type: array
+                  items: { type: string }
+      responses:
+        "200":
+          description: Composition replaced.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectCommittee" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  # ── Ownerships ─────────────────────────────────────────────────────────
+  /members/{memberId}/ownerships:
+    parameters: [{ $ref: "#/components/parameters/memberId" }]
+    get:
+      operationId: listMemberOwnerships
+      summary: A member's ownerships
+      responses:
+        "200":
+          description: All ownerships of the member.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Ownership" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      operationId: createOwnership
+      summary: Assign an existing asset to the member by asset_id
+      description: >
+        The asset must exist in the registry (Asset Management spec) and
+        not already have an active ownership — 409 if already allotted.
+        Assignment sets the asset's status to allotted and points its
+        current_ownership at the new record.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OwnershipInput" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ownership" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /ownerships/{ownershipId}:
+    parameters: [{ $ref: "#/components/parameters/ownershipId" }]
+    patch:
+      operationId: updateOwnership
+      summary: Amend informational fields (co-owner names) — never the owner or the asset
+      description: >
+        The asset label now lives on the Asset itself and is edited there
+        (Asset Management spec, 2026-07-20).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OwnershipInput" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ownership" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /ownerships/{ownershipId}/transfer:
+    parameters: [{ $ref: "#/components/parameters/ownershipId" }]
+    post:
+      operationId: transferOwnership
+      summary: Transfer the ownership to another member
+      description: >
+        Closes this ownership record and creates a new one for the receiving
+        member (records are never rewritten). Re-points the asset's
+        current_ownership to the new record — per-asset owner history for
+        free (Asset Management spec). 409 if the ownership has
+        unsettled charges — they must be paid before transfer. 422 if the
+        receiving member is not active.
+      parameters: [{ $ref: "#/components/parameters/idempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [to_member_id]
+              properties:
+                to_member_id: { type: string }
+                notes: { type: string }
+      responses:
+        "201":
+          description: Transferred — returns the new ownership record.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ownership" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  # ── Assets ─────────────────────────────────────────────────────────────
+  /assets:
+    get:
+      operationId: listAssets
+      summary: Asset registry, scoped to the caller's visibility
+      description: >
+        Management and EC members see all assets in all projects; employees
+        with the asset-view grant see their granted projects only (403
+        capability_required without any grant). Includes unowned
+        (available / society_retained) assets — the reason the registry is
+        first-class (Asset Management spec).
+      parameters:
+        - name: project_id
+          in: query
+          schema: { type: string }
+        - name: type
+          in: query
+          schema: { type: string, enum: [flat, plot, villa, dividend] }
+        - name: status
+          in: query
+          schema: { type: string, enum: [allotted, available, society_retained, all], default: all }
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: Page of assets with current-owner identity.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/Asset" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      operationId: createAsset
+      summary: Register an asset in a project (Management)
+      description: >
+        Assets can exist before/without an ownership — created as available
+        or society_retained; allotted is only ever set by ownership
+        assignment, never directly.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AssetInput" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Asset" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /assets/{assetId}:
+    parameters: [{ $ref: "#/components/parameters/assetId" }]
+    get:
+      operationId: getAsset
+      summary: One asset with its owner history
+      responses:
+        "200":
+          description: The asset, its current ownership, and the owner history across transfers.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AssetDetail" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      operationId: updateAsset
+      summary: Edit label, attributes, or unowned status (Management)
+      description: >
+        current_ownership is never edited here — it is re-pointed by
+        ownership assignment and transfer. status may only move between
+        available and society_retained; 409 while an active ownership
+        exists (the asset is allotted).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AssetInput" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Asset" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  # ── Charges & member payments ──────────────────────────────────────────
+  /charges:
+    get:
+      operationId: listChargesAdmin
+      summary: List charges across members
+      parameters:
+        - name: member_id
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string, enum: [due, in_payment, paid, all], default: due }
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: Page of charges.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/Charge" }
+    post:
+      operationId: createCharge
+      summary: Raise a one-time charge on an ownership
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ownership_id, description, amount, due_date]
+              properties:
+                ownership_id: { type: string }
+                description: { type: string }
+                amount: { $ref: "#/components/schemas/Money" }
+                due_date: { type: string, format: date }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Charge" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /maintenance-schedules:
+    get:
+      operationId: listMaintenanceSchedules
+      summary: Recurring maintenance-fee definitions
+      parameters:
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: Page of schedules.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/MaintenanceSchedule" }
+    post:
+      operationId: createMaintenanceSchedule
+      summary: Define a recurring maintenance fee (the scheduled run generates charges)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MaintenanceScheduleInput" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MaintenanceSchedule" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /maintenance-schedules/{scheduleId}:
+    parameters:
+      - name: scheduleId
+        in: path
+        required: true
+        schema: { type: string }
+    patch:
+      operationId: updateMaintenanceSchedule
+      summary: Amend or deactivate a schedule (already-generated charges are untouched)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MaintenanceScheduleInput" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MaintenanceSchedule" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /charges/{chargeId}/offline-payment:
+    parameters: [{ $ref: "#/components/parameters/chargeId" }]
+    post:
+      operationId: recordOfflinePayment
+      summary: Record a cash/cheque receipt against a charge
+      description: Posts to the Cash or Bank Book and the Payment Ledger, and issues a receipt.
+      parameters: [{ $ref: "#/components/parameters/idempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [method, amount, received_on]
+              properties:
+                method: { type: string, enum: [cash, cheque] }
+                amount: { $ref: "#/components/schemas/Money" }
+                received_on: { type: string, format: date }
+                reference: { type: string, description: Cheque number / memo }
+      responses:
+        "201":
+          description: Receipt issued; ledger entries posted.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Receipt" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  # ── Vendors ────────────────────────────────────────────────────────────
+  /vendors:
+    get:
+      operationId: listVendors
+      summary: Vendor registry
+      parameters:
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: Page of vendors.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/Vendor" }
+    post:
+      operationId: createVendor
+      summary: Register a vendor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VendorInput" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Vendor" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /vendors/{vendorId}:
+    parameters:
+      - name: vendorId
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      operationId: getVendor
+      summary: One vendor
+      responses:
+        "200":
+          description: The vendor.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Vendor" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      operationId: updateVendor
+      summary: Update a vendor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VendorInput" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Vendor" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ── Work orders ────────────────────────────────────────────────────────
+  /work-orders:
+    get:
+      operationId: listWorkOrders
+      summary: List work orders
+      parameters:
+        - name: vendor_id
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string, enum: [issued, in_progress, completed, cancelled, all], default: all }
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: Page of work orders.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/WorkOrder" }
+    post:
+      operationId: createWorkOrder
+      summary: Issue a work order to a vendor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WorkOrderInput" }
+      responses:
+        "201":
+          description: Issued.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkOrder" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /work-orders/{workOrderId}:
+    parameters: [{ $ref: "#/components/parameters/workOrderId" }]
+    get:
+      operationId: getWorkOrder
+      summary: One work order with its invoices
+      responses:
+        "200":
+          description: The work order.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkOrderDetail" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      operationId: updateWorkOrder
+      summary: Amend a work order
+      description: >
+        Amendment (scope/value/validity) is allowed only until the first
+        invoice is submitted against the work order — 409 afterwards; cancel
+        the remainder or issue a new work order instead.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WorkOrderInput" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkOrder" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /work-orders/{workOrderId}/cancel:
+    parameters: [{ $ref: "#/components/parameters/workOrderId" }]
+    post:
+      operationId: cancelWorkOrder
+      summary: Cancel an unfulfilled work order
+      responses:
+        "200":
+          description: Cancelled.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkOrder" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  # ── Invoices ───────────────────────────────────────────────────────────
+  /work-orders/{workOrderId}/invoices:
+    parameters: [{ $ref: "#/components/parameters/workOrderId" }]
+    post:
+      operationId: createInvoice
+      summary: Enter a vendor invoice (full or partial) against the work order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, invoice_date, document_id]
+              properties:
+                amount: { $ref: "#/components/schemas/Money" }
+                gst_amount: { $ref: "#/components/schemas/Money" }
+                invoice_number: { type: string, description: Vendor's invoice number }
+                invoice_date: { type: string, format: date }
+                document_id: { type: string, description: Uploaded scan (POST /documents) — required for compliance }
+                resubmission_of:
+                  type: string
+                  description: >
+                    Invoice id of a finally rejected predecessor on the same
+                    work order. The resubmission goes through the full
+                    verify/approve workflow again and closes the EC-override
+                    window on the predecessor. 422 if the referenced invoice
+                    is not rejected, was already resubmitted, or belongs to
+                    another work order.
+                notes: { type: string }
+      responses:
+        "201":
+          description: Submitted for verification.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Invoice" }
+        "409":
+          description: Work order not invoiceable (cancelled), or cumulative amount exceeds work-order value.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /invoices:
+    get:
+      operationId: listInvoices
+      summary: Invoice queue
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [submitted, verified, approved, rejected, paid, all], default: submitted }
+        - name: vendor_id
+          in: query
+          schema: { type: string }
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: Page of invoices.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/Invoice" }
+
+  /invoices/{invoiceId}:
+    parameters: [{ $ref: "#/components/parameters/invoiceId" }]
+    get:
+      operationId: getInvoice
+      summary: One invoice with its action history
+      responses:
+        "200":
+          description: The invoice.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Invoice" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /invoices/{invoiceId}/verify:
+    parameters: [{ $ref: "#/components/parameters/invoiceId" }]
+    post:
+      operationId: verifyInvoice
+      summary: Designated employee verifies the invoice
+      description: Requires the designated-verifier capability; 403 capability_required otherwise.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes: { type: string }
+      responses:
+        "200":
+          description: Verified — moves to the EC approval queue.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Invoice" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /invoices/{invoiceId}/approve:
+    parameters: [{ $ref: "#/components/parameters/invoiceId" }]
+    post:
+      operationId: approveInvoice
+      summary: EC member approves (normal or override)
+      description: >
+        Records the calling EC member's approval. On a verified invoice:
+        requires the designated-approver capability; approved at a majority
+        of the designated EC subset. On a rejected invoice (EC override):
+        any EC member may approve; the rejection is superseded and the
+        invoice approved at a majority of the entire EC. approval_progress
+        reports the running count against the active threshold. 409 if the
+        rejected invoice has been resubmitted (resubmitted_as set) — the
+        override window is closed.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes: { type: string }
+      responses:
+        "200":
+          description: Approval recorded; status flips to approved when the majority threshold is met.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Invoice" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /invoices/{invoiceId}/reject:
+    parameters: [{ $ref: "#/components/parameters/invoiceId" }]
+    post:
+      operationId: rejectInvoice
+      summary: Designated EC member rejects (terminal)
+      description: >
+        A single rejection is terminal: the invoice goes to rejected
+        immediately and accumulated approvals are discarded. Sole recourse
+        is the EC override on approveInvoice (majority of the entire EC).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string }
+      responses:
+        "200":
+          description: Rejected.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Invoice" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /invoices/{invoiceId}/payment:
+    parameters: [{ $ref: "#/components/parameters/invoiceId" }]
+    post:
+      operationId: recordInvoicePayment
+      summary: Record the payment to the vendor
+      description: Posts to the Bank or Cash Book and the Expense Ledger. Invoice must be approved.
+      parameters: [{ $ref: "#/components/parameters/idempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [method, amount, paid_on]
+              properties:
+                method: { type: string, enum: [bank, cash] }
+                amount: { $ref: "#/components/schemas/Money" }
+                paid_on: { type: string, format: date }
+                reference: { type: string, description: UTR / cheque number / memo }
+      responses:
+        "201":
+          description: Payment recorded; ledger entries posted; invoice marked paid.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Invoice" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  # ── Employees ──────────────────────────────────────────────────────────
+  /employees:
+    get:
+      operationId: listEmployees
+      summary: Employee records
+      parameters:
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: Page of employees.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/Employee" }
+    post:
+      operationId: createEmployee
+      summary: Add an employee (non-member, salaried)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmployeeInput" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Employee" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /employees/{employeeId}:
+    parameters: [{ $ref: "#/components/parameters/employeeId" }]
+    get:
+      operationId: getEmployee
+      summary: One employee
+      responses:
+        "200":
+          description: The employee.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Employee" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      operationId: updateEmployee
+      summary: Update an employee
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmployeeInput" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Employee" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /employees/{employeeId}/salary-payments:
+    parameters: [{ $ref: "#/components/parameters/employeeId" }]
+    post:
+      operationId: recordSalaryPayment
+      summary: Record a salary payment
+      description: Posts to the Expense Ledger and the Bank or Cash Book.
+      parameters: [{ $ref: "#/components/parameters/idempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [method, amount, period, paid_on]
+              properties:
+                method: { type: string, enum: [bank, cash] }
+                amount: { $ref: "#/components/schemas/Money" }
+                period: { type: string, description: Salary period, e.g. "2026-07" }
+                paid_on: { type: string, format: date }
+                reference: { type: string }
+      responses:
+        "201":
+          description: Recorded; ledger entries posted.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LedgerEntry" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /employees/{employeeId}/asset-view-grants:
+    parameters: [{ $ref: "#/components/parameters/employeeId" }]
+    get:
+      operationId: listAssetViewGrants
+      summary: The employee's project-scoped asset-view grants
+      responses:
+        "200":
+          description: Granted project ids (empty if none — the default).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AssetViewGrants" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      operationId: setAssetViewGrants
+      summary: Replace the employee's asset-view grants (Management)
+      description: >
+        Audited admin action mirroring the designated verifier /
+        finance-recorder pattern (Asset Management spec) — a capability,
+        not a role. 422 if the employee has no admin account (the asset
+        view lives on this panel) or a project id is unknown.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AssetViewGrants" }
+      responses:
+        "200":
+          description: Updated grants.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AssetViewGrants" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  # ── Books of account ───────────────────────────────────────────────────
+  /books/{book}/entries:
+    parameters: [{ $ref: "#/components/parameters/book" }]
+    get:
+      operationId: listBookEntries
+      summary: Read a book of account
+      parameters:
+        - name: from
+          in: query
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          schema: { type: string, format: date }
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: Page of entries (append-only; reversals appear as entries).
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/LedgerEntry" }
+
+  /books/{book}/entries/{entryId}:
+    parameters:
+      - $ref: "#/components/parameters/book"
+      - $ref: "#/components/parameters/entryId"
+    get:
+      operationId: getBookEntry
+      summary: One ledger entry with linked documents
+      responses:
+        "200":
+          description: The entry.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LedgerEntry" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /books/{book}/entries/{entryId}/reversal:
+    parameters:
+      - $ref: "#/components/parameters/book"
+      - $ref: "#/components/parameters/entryId"
+    post:
+      operationId: reverseBookEntry
+      summary: Correct an entry by posting a reversing entry
+      parameters: [{ $ref: "#/components/parameters/idempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string }
+      responses:
+        "201":
+          description: Reversing entry posted (original untouched).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LedgerEntry" }
+        "409":
+          description: Entry already reversed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /books/{book}/entries/{entryId}/documents:
+    parameters:
+      - $ref: "#/components/parameters/book"
+      - $ref: "#/components/parameters/entryId"
+    post:
+      operationId: linkDocumentToEntry
+      summary: Link an uploaded scanned document to the entry (immutable once linked)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [document_id]
+              properties:
+                document_id: { type: string }
+      responses:
+        "201":
+          description: Linked.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DocumentLink" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Document already linked to this entry.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  # ── Documents (registry — see specifications/document-management.md) ───
+  /documents:
+    get:
+      operationId: listDocuments
+      summary: Search the document registry
+      description: >
+        Full-text q searches title, category, tags, notes, and file_name
+        (Postgres FTS). Documents whose file upload has not completed are
+        never listed.
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string }
+        - name: level
+          in: query
+          schema: { type: string, enum: [society, project, member] }
+        - name: project_id
+          in: query
+          schema: { type: string, description: Implies level=project }
+        - name: member_id
+          in: query
+          schema: { type: string, description: Implies level=member }
+        - name: category
+          in: query
+          schema: { type: string }
+        - name: uploaded_from
+          in: query
+          schema: { type: string, format: date }
+        - name: uploaded_to
+          in: query
+          schema: { type: string, format: date }
+        - name: status
+          in: query
+          schema: { type: string, enum: [active, archived, all], default: active }
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: Page of documents.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/Document" }
+    post:
+      operationId: createDocumentUpload
+      summary: Register a document and start its upload
+      description: >
+        Creates the registry record at society, project, or member level and
+        returns a presigned PUT URL (FileBucket). The document becomes active
+        (and listable) once the upload completes. The file is immutable
+        thereafter — a correction is a new document plus archival of the old
+        one.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DocumentInput" }
+      responses:
+        "201":
+          description: Upload slot created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [document_id, upload_url, expires_at]
+                properties:
+                  document_id: { type: string }
+                  upload_url: { type: string, format: uri }
+                  expires_at: { type: string, format: date-time }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /documents/{documentId}:
+    parameters: [{ $ref: "#/components/parameters/documentId" }]
+    get:
+      operationId: getDocument
+      summary: One document's metadata and links
+      responses:
+        "200":
+          description: The document.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Document" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      operationId: updateDocument
+      summary: Edit document metadata
+      description: >
+        Only title, category, tags, and notes are editable; edits are
+        audit-trailed. The file and the level/entity binding are immutable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DocumentPatch" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Document" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /documents/{documentId}/download:
+    parameters: [{ $ref: "#/components/parameters/documentId" }]
+    get:
+      operationId: downloadDocument
+      summary: Presigned download URL for the file
+      responses:
+        "200":
+          description: Short-lived download URL.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [download_url, expires_at]
+                properties:
+                  download_url: { type: string, format: uri }
+                  expires_at: { type: string, format: date-time }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /documents/{documentId}/archive:
+    parameters: [{ $ref: "#/components/parameters/documentId" }]
+    post:
+      operationId: archiveDocument
+      summary: Archive a document (hidden from default listings; never deleted)
+      responses:
+        "200":
+          description: Archived.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Document" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Already archived, or linked to a ledger entry or invoice (compliance evidence is never archived).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /documents/{documentId}/restore:
+    parameters: [{ $ref: "#/components/parameters/documentId" }]
+    post:
+      operationId: restoreDocument
+      summary: Restore an archived document to active
+      responses:
+        "200":
+          description: Restored.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Document" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Document is not archived.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /document-categories:
+    get:
+      operationId: listDocumentCategories
+      summary: The society's document-category list
+      responses:
+        "200":
+          description: Current categories.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [categories]
+                properties:
+                  categories:
+                    type: array
+                    items: { type: string }
+    put:
+      operationId: replaceDocumentCategories
+      summary: Replace the category list (management)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [categories]
+              properties:
+                categories:
+                  type: array
+                  items: { type: string }
+      responses:
+        "200":
+          description: Replaced.
+        "409":
+          description: A removed category is still in use by documents.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  # ── Member requests ────────────────────────────────────────────────────
+  /tickets:
+    get:
+      operationId: listTickets
+      summary: Ticket triage queue
+      parameters:
+        - name: category
+          in: query
+          schema: { type: string, enum: [finance, maintenance, records, general] }
+        - name: status
+          in: query
+          schema: { type: string, enum: [open, in_progress, resolved, closed, withdrawn, all], default: open }
+        - name: assignee_id
+          in: query
+          schema: { type: string }
+        - name: member_id
+          in: query
+          schema: { type: string }
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: Page of tickets, oldest first (ageing view).
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/Ticket" }
+    post:
+      operationId: createTicketOnBehalf
+      summary: Raise a ticket on a member's behalf (walk-in/phone)
+      description: The acting admin user is recorded as entered_by.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [member_id, category, subject, description]
+              properties:
+                member_id: { type: string }
+                category: { type: string, enum: [finance, maintenance, records, general] }
+                subject: { type: string, maxLength: 200 }
+                description: { type: string }
+      responses:
+        "201":
+          description: Ticket opened and routed to the category's default assignee.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ticket" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /tickets/{ticketId}:
+    parameters: [{ $ref: "#/components/parameters/ticketId" }]
+    get:
+      operationId: getTicket
+      summary: One ticket with thread, attachments, and status history
+      responses:
+        "200":
+          description: The ticket.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TicketDetail" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /tickets/{ticketId}/assign:
+    parameters: [{ $ref: "#/components/parameters/ticketId" }]
+    post:
+      operationId: assignTicket
+      summary: Assign or reassign the ticket
+      description: >
+        Moves an open ticket to in_progress on first assignment. 422 if the
+        assignee has no admin account.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assignee_id]
+              properties:
+                assignee_id: { type: string, description: Employee id with an admin account. }
+      responses:
+        "200":
+          description: Assigned.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ticket" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /tickets/{ticketId}/comments:
+    parameters: [{ $ref: "#/components/parameters/ticketId" }]
+    post:
+      operationId: addTicketCommentAdmin
+      summary: Staff reply on the ticket thread
+      description: Notifies the member by push on their registered devices.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string }
+      responses:
+        "201":
+          description: Comment appended.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TicketComment" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /tickets/{ticketId}/resolve:
+    parameters: [{ $ref: "#/components/parameters/ticketId" }]
+    post:
+      operationId: resolveTicket
+      summary: Resolve the ticket
+      description: >
+        Requires a resolution note. The member is notified and can reopen
+        within 7 days; otherwise the ticket auto-closes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resolution_note]
+              properties:
+                resolution_note: { type: string }
+      responses:
+        "200":
+          description: Resolved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ticket" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /tickets/{ticketId}/work-order:
+    parameters: [{ $ref: "#/components/parameters/ticketId" }]
+    put:
+      operationId: setTicketWorkOrder
+      summary: Set or clear the informational work-order link
+      description: >
+        Maintenance tickets only (409 otherwise). The link is informational —
+        ticket resolution and the vendor money path stay independent.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [work_order_id]
+              properties:
+                work_order_id:
+                  type: [string, "null"]
+                  description: Null clears the link.
+      responses:
+        "200":
+          description: Link updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ticket" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /tickets/{ticketId}/attachments/{attachmentId}:
+    parameters:
+      - $ref: "#/components/parameters/ticketId"
+      - $ref: "#/components/parameters/attachmentId"
+    get:
+      operationId: getTicketAttachmentAdmin
+      summary: Presigned download of a member-uploaded attachment
+      responses:
+        "200":
+          description: Presigned link (expires; do not cache).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url, expires_at]
+                properties:
+                  url: { type: string, format: uri }
+                  expires_at: { type: string, format: date-time }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /ticket-routing:
+    get:
+      operationId: getTicketRouting
+      summary: Per-category default assignee configuration
+      responses:
+        "200":
+          description: Current routing.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TicketRouting" }
+    put:
+      operationId: replaceTicketRouting
+      summary: Replace the routing configuration (management)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TicketRouting" }
+      responses:
+        "200":
+          description: Replaced.
+        "422":
+          description: An assignee has no admin account, or a category is missing.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  # ── Communication ──────────────────────────────────────────────────────
+  /bulletin-posts:
+    get:
+      operationId: listBulletinPostsAdmin
+      summary: All bulletin posts across boards
+      parameters:
+        - name: scope
+          in: query
+          schema: { type: string, enum: [society, project, all], default: all }
+        - name: project_id
+          in: query
+          schema: { type: string }
+        - name: include_archived
+          in: query
+          schema: { type: boolean, default: false }
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: Page of posts.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/BulletinPost" }
+    post:
+      operationId: createBulletinPost
+      summary: Post to the society board (EC members)
+      description: >
+        Society scope only — project boards are posted by their PC on the
+        mobile /pc surface (Communication spec), never here. Requires an EC
+        role (403 capability_required). Attachments reference registry
+        documents. Publishing pushes a notification to all members with app
+        access.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BulletinPostInput" }
+      responses:
+        "201":
+          description: Posted to the society board.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BulletinPost" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /bulletin-posts/{postId}:
+    parameters: [{ $ref: "#/components/parameters/postId" }]
+    get:
+      operationId: getBulletinPostAdmin
+      summary: One post
+      responses:
+        "200":
+          description: The post.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BulletinPost" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      operationId: updateBulletinPost
+      summary: Edit a society post (EC members; audited)
+      description: >
+        The editor and edited_at are recorded for the audit trail. 409 if
+        the post is project-scoped (edited by its PC on mobile) or archived.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BulletinPostInput" }
+      responses:
+        "200":
+          description: Updated post.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BulletinPost" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /bulletin-posts/{postId}/archive:
+    parameters: [{ $ref: "#/components/parameters/postId" }]
+    post:
+      operationId: archiveBulletinPost
+      summary: Archive a post (moderation; never deleted)
+      description: >
+        Management/EC. Applies to society and project posts alike — the
+        moderation backstop for project boards. Archived posts disappear
+        from member boards but remain in include_archived listings. 409 if
+        already archived.
+      responses:
+        "200":
+          description: Archived.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BulletinPost" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /messages:
+    get:
+      operationId: listMessages
+      summary: Sent direct messages
+      parameters:
+        - name: member_id
+          in: query
+          schema: { type: string }
+          description: Only messages that included this member as a recipient.
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: Page of messages, newest first.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/Message" }
+    post:
+      operationId: sendMessage
+      summary: Send a direct message to member(s) via email/WhatsApp
+      description: >
+        Management and EC only (403 capability_required). Delivery is
+        asynchronous — entries start queued; poll getMessage for the log.
+        WhatsApp goes only to members with whatsapp_opt_in and renders the
+        body through the society's pre-approved notice template
+        (Communication spec); non-opted-in recipients get email only, with
+        the WhatsApp entry recorded as skipped.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [member_ids, channels, subject, body]
+              properties:
+                member_ids:
+                  type: array
+                  minItems: 1
+                  items: { type: string }
+                channels:
+                  type: array
+                  minItems: 1
+                  items: { type: string, enum: [email, whatsapp] }
+                subject: { type: string, maxLength: 200 }
+                body: { type: string }
+      responses:
+        "201":
+          description: Message accepted; deliveries queued.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Message" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422":
+          description: Unknown member id, or a recipient has no address for any requested channel.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /messages/{messageId}:
+    parameters: [{ $ref: "#/components/parameters/messageId" }]
+    get:
+      operationId: getMessage
+      summary: One message with its delivery log
+      responses:
+        "200":
+          description: The message.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Message" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ── Exports ────────────────────────────────────────────────────────────
+  /exports/tally:
+    post:
+      operationId: startTallyExport
+      summary: Start a Tally export for a period (async)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [from, to]
+              properties:
+                from: { type: string, format: date }
+                to: { type: string, format: date }
+      responses:
+        "202":
+          description: Export job accepted.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExportJob" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /exports/{exportId}:
+    parameters: [{ $ref: "#/components/parameters/exportId" }]
+    get:
+      operationId: getExport
+      summary: Export job status
+      responses:
+        "200":
+          description: The job.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExportJob" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /exports/{exportId}/download:
+    parameters: [{ $ref: "#/components/parameters/exportId" }]
+    get:
+      operationId: downloadExport
+      summary: Presigned URL to the export artifact
+      responses:
+        "200":
+          description: Presigned link (expires; do not cache).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url, expires_at]
+                properties:
+                  url: { type: string, format: uri }
+                  expires_at: { type: string, format: date-time }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Job not yet completed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Cognito-issued access token with admin role claims.
+
+  parameters:
+    cursor:
+      name: cursor
+      in: query
+      schema: { type: string }
+    limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    idempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, maxLength: 128 }
+    memberId:
+      name: memberId
+      in: path
+      required: true
+      schema: { type: string }
+    projectId:
+      name: projectId
+      in: path
+      required: true
+      schema: { type: string }
+    ownershipId:
+      name: ownershipId
+      in: path
+      required: true
+      schema: { type: string }
+    assetId:
+      name: assetId
+      in: path
+      required: true
+      schema: { type: string }
+    chargeId:
+      name: chargeId
+      in: path
+      required: true
+      schema: { type: string }
+    workOrderId:
+      name: workOrderId
+      in: path
+      required: true
+      schema: { type: string }
+    invoiceId:
+      name: invoiceId
+      in: path
+      required: true
+      schema: { type: string }
+    employeeId:
+      name: employeeId
+      in: path
+      required: true
+      schema: { type: string }
+    entryId:
+      name: entryId
+      in: path
+      required: true
+      schema: { type: string }
+    documentId:
+      name: documentId
+      in: path
+      required: true
+      schema: { type: string }
+    exportId:
+      name: exportId
+      in: path
+      required: true
+      schema: { type: string }
+    book:
+      name: book
+      in: path
+      required: true
+      schema: { type: string, enum: [bank, cash, payment, expense] }
+    ticketId:
+      name: ticketId
+      in: path
+      required: true
+      schema: { type: string }
+    attachmentId:
+      name: attachmentId
+      in: path
+      required: true
+      schema: { type: string }
+    postId:
+      name: postId
+      in: path
+      required: true
+      schema: { type: string }
+    messageId:
+      name: messageId
+      in: path
+      required: true
+      schema: { type: string }
+
+  responses:
+    NotFound:
+      description: Resource does not exist.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: Caller lacks the required capability (code capability_required).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: Action invalid in the resource's current state.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Invalid:
+      description: Validation failure.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    MemberPage:
+      description: Page of members.
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/Page"
+              - properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Member" }
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+
+    Money:
+      type: string
+      pattern: "^[0-9]+\\.[0-9]{2}$"
+      description: Decimal INR as a string, two fraction digits. Never a float.
+
+    Page:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items: {}
+        next_cursor:
+          type: [string, "null"]
+
+    Member:
+      type: object
+      required: [member_id, name, member_status, joining_date]
+      properties:
+        member_id: { type: string }
+        name: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        address: { type: string }
+        joining_date: { type: string, format: date, description: Set on admission (pending → active). }
+        member_status: { type: string, enum: [pending, active, suspended, ceased] }
+        cessation_reason:
+          type: [string, "null"]
+          enum: [resigned, expelled, deceased, transferred, null]
+          description: Required when (and only present once) member_status is ceased.
+        roles:
+          type: array
+          items: { type: string, enum: [member, management, president, vice_president, general_secretary, treasurer, executive_member] }
+        whatsapp_opt_in:
+          type: boolean
+          description: >
+            Consent to receive direct messages on WhatsApp (Communication
+            spec). Normally set by the member at onboarding (mobile
+            PUT /me/whatsapp-consent); editable here for offline written
+            consent. Without it, direct messages reach the member by email
+            only (skipped delivery entry).
+
+    MemberInput:
+      type: object
+      properties:
+        name: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        address: { type: string }
+        joining_date: { type: string, format: date }
+        member_status: { type: string, enum: [pending, active, suspended, ceased] }
+        cessation_reason:
+          type: string
+          enum: [resigned, expelled, deceased, transferred]
+          description: Required iff member_status is being set to ceased.
+        roles:
+          type: array
+          items: { type: string }
+        whatsapp_opt_in: { type: boolean }
+
+    ProjectCommittee:
+      type: object
+      required: [project_id, chair_member_id, member_ids]
+      properties:
+        project_id: { type: string }
+        chair_member_id: { type: [string, "null"], description: Null when no PC has been appointed. }
+        member_ids:
+          type: array
+          items: { type: string }
+        updated_at: { type: [string, "null"], format: date-time }
+
+    Project:
+      type: object
+      required: [project_id, name]
+      properties:
+        project_id: { type: string }
+        name: { type: string }
+        description: { type: string }
+
+    ProjectInput:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string }
+
+    Ownership:
+      type: object
+      required: [ownership_id, member_id, project_id, asset_id]
+      properties:
+        ownership_id: { type: string }
+        member_id: { type: string }
+        project_id: { type: string }
+        asset_id:
+          type: string
+          description: The owned Asset (Asset Management spec) — replaces the embedded asset_type/asset_label.
+        asset:
+          $ref: "#/components/schemas/Asset"
+          description: The referenced asset, embedded read-only for display.
+        co_owner_names:
+          type: array
+          items: { type: string }
+          description: Informational only — the single primary owner is billed (Domain Model).
+
+    OwnershipInput:
+      type: object
+      description: >
+        On create, asset_id is required and determines the project. On
+        PATCH, only co_owner_names may change — asset_id is immutable
+        (transfer is the only way an asset changes hands).
+      properties:
+        asset_id: { type: string }
+        co_owner_names:
+          type: array
+          items: { type: string }
+
+    Asset:
+      type: object
+      required: [asset_id, project_id, type, status]
+      properties:
+        asset_id: { type: string }
+        project_id: { type: string }
+        type: { type: string, enum: [flat, plot, villa, dividend] }
+        label: { type: string, description: 'Human identifier, e.g. "A-204", "Plot 17"; absent for dividend holdings.' }
+        attributes:
+          type: object
+          additionalProperties: true
+          description: Optional physical metadata — e.g. area_sqft, block, floor (draft, extensible).
+        status: { type: string, enum: [allotted, available, society_retained] }
+        current_ownership_id:
+          type: [string, "null"]
+          description: >
+            The active Ownership; null while unowned. Re-pointed by
+            ownership assignment and transfer — never edited directly.
+        current_owner:
+          type: [object, "null"]
+          description: Owner identity, for registry views; null while unowned.
+          required: [member_id, name]
+          properties:
+            member_id: { type: string }
+            name: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    AssetDetail:
+      allOf:
+        - $ref: "#/components/schemas/Asset"
+        - type: object
+          properties:
+            owner_history:
+              type: array
+              description: >
+                All ownerships of this asset, newest first —
+                close-and-create transfers preserve the chain.
+              items:
+                type: object
+                required: [ownership_id, member_id, member_name, from]
+                properties:
+                  ownership_id: { type: string }
+                  member_id: { type: string }
+                  member_name: { type: string }
+                  from: { type: string, format: date }
+                  to: { type: [string, "null"], format: date, description: Null for the active ownership. }
+
+    AssetInput:
+      type: object
+      description: >
+        On create, project_id and type are required; status defaults to
+        available. On PATCH, project_id and type are immutable; status may
+        only move between available and society_retained.
+      properties:
+        project_id: { type: string }
+        type: { type: string, enum: [flat, plot, villa, dividend] }
+        label: { type: string }
+        attributes:
+          type: object
+          additionalProperties: true
+        status: { type: string, enum: [available, society_retained] }
+
+    AssetViewGrants:
+      type: object
+      required: [project_ids]
+      properties:
+        project_ids:
+          type: array
+          items: { type: string }
+          description: Projects whose assets the employee may view — none by default.
+
+    Charge:
+      type: object
+      required: [charge_id, ownership_id, kind, description, amount, amount_due, status, due_date]
+      properties:
+        charge_id: { type: string }
+        ownership_id: { type: string }
+        member_id: { type: string }
+        kind: { type: string, enum: [asset_charge, maintenance_fee] }
+        description: { type: string }
+        amount: { $ref: "#/components/schemas/Money" }
+        amount_due: { $ref: "#/components/schemas/Money" }
+        status: { type: string, enum: [due, in_payment, paid] }
+        due_date: { type: string, format: date }
+        period: { type: [string, "null"] }
+
+    MaintenanceSchedule:
+      type: object
+      required: [schedule_id, amount, frequency, active]
+      properties:
+        schedule_id: { type: string }
+        description: { type: string }
+        amount: { $ref: "#/components/schemas/Money" }
+        frequency: { type: string, enum: [monthly, quarterly, yearly] }
+        asset_types:
+          type: array
+          items: { type: string, enum: [flat, plot, villa, dividend] }
+          description: Which asset types this fee applies to.
+        project_id: { type: [string, "null"], description: Limit to one project; null = society-wide. }
+        active: { type: boolean }
+
+    MaintenanceScheduleInput:
+      type: object
+      properties:
+        description: { type: string }
+        amount: { $ref: "#/components/schemas/Money" }
+        frequency: { type: string, enum: [monthly, quarterly, yearly] }
+        asset_types:
+          type: array
+          items: { type: string }
+        project_id: { type: [string, "null"] }
+        active: { type: boolean }
+
+    Vendor:
+      type: object
+      required: [vendor_id, name]
+      properties:
+        vendor_id: { type: string }
+        name: { type: string }
+        gstin: { type: [string, "null"] }
+        contact_name: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        address: { type: string }
+
+    VendorInput:
+      type: object
+      properties:
+        name: { type: string }
+        gstin: { type: [string, "null"] }
+        contact_name: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        address: { type: string }
+
+    WorkOrder:
+      type: object
+      required: [work_order_id, vendor_id, scope, value, status, issued_on]
+      properties:
+        work_order_id: { type: string }
+        vendor_id: { type: string }
+        scope: { type: string, description: Description of the contracted work. }
+        value: { $ref: "#/components/schemas/Money" }
+        invoiced_total:
+          allOf: [{ $ref: "#/components/schemas/Money" }]
+          description: Cumulative invoiced amount, excluding rejected invoices.
+        status: { type: string, enum: [issued, in_progress, completed, cancelled] }
+        issued_on: { type: string, format: date }
+        valid_until: { type: [string, "null"], format: date }
+        notes: { type: string }
+
+    WorkOrderInput:
+      type: object
+      properties:
+        vendor_id: { type: string }
+        scope: { type: string }
+        value: { $ref: "#/components/schemas/Money" }
+        valid_until: { type: [string, "null"], format: date }
+        notes: { type: string }
+
+    WorkOrderDetail:
+      allOf:
+        - $ref: "#/components/schemas/WorkOrder"
+        - type: object
+          properties:
+            invoices:
+              type: array
+              items: { $ref: "#/components/schemas/Invoice" }
+
+    Invoice:
+      type: object
+      required: [invoice_id, work_order_id, vendor_id, amount, status, invoice_date]
+      properties:
+        invoice_id: { type: string }
+        work_order_id: { type: string }
+        vendor_id: { type: string }
+        invoice_number: { type: string }
+        amount: { $ref: "#/components/schemas/Money" }
+        gst_amount: { $ref: "#/components/schemas/Money" }
+        status: { type: string, enum: [submitted, verified, approved, rejected, paid] }
+        invoice_date: { type: string, format: date }
+        document_id: { type: string }
+        approval_progress:
+          type: object
+          description: >
+            Approval progress against the active threshold — majority of the
+            designated subset while verified; majority of the entire EC while
+            rejected (override).
+          required: [approved_count, required_count]
+          properties:
+            approved_count: { type: integer }
+            required_count: { type: integer, description: Active majority threshold. }
+        resubmission_of:
+          type: [string, "null"]
+          description: Invoice id of the finally rejected predecessor this invoice resubmits.
+        resubmitted_as:
+          type: [string, "null"]
+          description: On a rejected invoice, the id of the fresh invoice that resubmits it.
+        actions:
+          type: array
+          description: Audit trail of workflow actions.
+          items:
+            type: object
+            required: [action, actor_id, at]
+            properties:
+              action: { type: string, enum: [submitted, verified, approved, rejected, paid] }
+              actor_id: { type: string }
+              at: { type: string, format: date-time }
+              notes: { type: string }
+
+    Employee:
+      type: object
+      required: [employee_id, name]
+      properties:
+        employee_id: { type: string }
+        name: { type: string }
+        designation: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        monthly_salary: { $ref: "#/components/schemas/Money" }
+        joined_on: { type: string, format: date }
+
+    EmployeeInput:
+      type: object
+      properties:
+        name: { type: string }
+        designation: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        monthly_salary: { $ref: "#/components/schemas/Money" }
+        joined_on: { type: string, format: date }
+
+    LedgerEntry:
+      type: object
+      required: [entry_id, book, entry_date, description, amount, direction]
+      properties:
+        entry_id: { type: string }
+        book: { type: string, enum: [bank, cash, payment, expense] }
+        entry_date: { type: string, format: date }
+        description: { type: string }
+        amount: { $ref: "#/components/schemas/Money" }
+        direction: { type: string, enum: [debit, credit] }
+        reverses_entry_id: { type: [string, "null"], description: Set on reversing entries. }
+        reversed_by_entry_id: { type: [string, "null"] }
+        source:
+          type: object
+          description: What produced this entry (charge payment, invoice payment, salary, …).
+          properties:
+            kind: { type: string, enum: [member_payment, offline_payment, invoice_payment, salary_payment, reversal, manual] }
+            reference_id: { type: string }
+        documents:
+          type: array
+          items: { $ref: "#/components/schemas/DocumentLink" }
+
+    DocumentLink:
+      type: object
+      required: [document_id, title, category, file_name]
+      properties:
+        document_id: { type: string }
+        title: { type: string }
+        category: { type: string }
+        file_name: { type: string }
+        linked_at: { type: string, format: date-time }
+
+    Document:
+      type: object
+      required: [document_id, level, title, category, file_name, mime_type, status, uploaded_by, uploaded_at]
+      properties:
+        document_id: { type: string }
+        level: { type: string, enum: [society, project, member] }
+        project_id: { type: [string, "null"], description: Set iff level=project. }
+        member_id: { type: [string, "null"], description: Set iff level=member. }
+        title: { type: string }
+        category: { type: string, description: From the per-society category list (GET /document-categories). }
+        tags:
+          type: array
+          items: { type: string }
+        notes: { type: [string, "null"] }
+        file_name: { type: string }
+        mime_type: { type: string }
+        size_bytes: { type: integer }
+        checksum: { type: [string, "null"], description: SHA-256 of the stored file. }
+        status: { type: string, enum: [active, archived] }
+        member_visible:
+          type: boolean
+          description: >
+            Off by default. When on, the document is readable by members on the
+            (fast-follow) member surface — society-level by all active members,
+            project-level by members owning in the project, member-level by
+            that member.
+        uploaded_by: { type: string }
+        uploaded_at: { type: string, format: date-time }
+        ledger_links:
+          type: array
+          description: Ledger entries this document is linked to (links are immutable and block archival).
+          items:
+            type: object
+            required: [book, entry_id]
+            properties:
+              book: { type: string, enum: [bank, cash, payment, expense] }
+              entry_id: { type: string }
+              linked_at: { type: string, format: date-time }
+        invoice_ids:
+          type: array
+          description: Invoices carrying this document (block archival).
+          items: { type: string }
+
+    DocumentInput:
+      type: object
+      required: [level, title, category, filename, content_type]
+      properties:
+        level: { type: string, enum: [society, project, member] }
+        project_id: { type: string, description: Required iff level=project (422 otherwise). }
+        member_id: { type: string, description: Required iff level=member (422 otherwise). }
+        title: { type: string }
+        category: { type: string, description: 422 code unknown_category if not in the society's list. }
+        tags:
+          type: array
+          items: { type: string }
+        notes: { type: string }
+        member_visible: { type: boolean, default: false }
+        filename: { type: string }
+        content_type: { type: string }
+
+    DocumentPatch:
+      type: object
+      properties:
+        title: { type: string }
+        category: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+        notes: { type: string }
+        member_visible: { type: boolean }
+
+    Receipt:
+      type: object
+      required: [receipt_id, receipt_number, amount, issued_at, charge_ids]
+      properties:
+        receipt_id: { type: string }
+        receipt_number: { type: string }
+        amount: { $ref: "#/components/schemas/Money" }
+        issued_at: { type: string, format: date-time }
+        charge_ids:
+          type: array
+          items: { type: string }
+        payment_id: { type: [string, "null"], description: Null for offline (cash/cheque) receipts. }
+
+    ExportJob:
+      type: object
+      required: [export_id, kind, status, requested_at]
+      properties:
+        export_id: { type: string }
+        kind: { type: string, enum: [tally] }
+        status: { type: string, enum: [queued, running, completed, failed] }
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        requested_at: { type: string, format: date-time }
+        completed_at: { type: [string, "null"], format: date-time }
+        failure_reason: { type: [string, "null"] }
+
+    Ticket:
+      type: object
+      required: [ticket_id, member_id, member_name, category, subject, status, created_at, updated_at]
+      properties:
+        ticket_id: { type: string, description: Also the member-facing reference number. }
+        member_id: { type: string }
+        member_name: { type: string }
+        category: { type: string, enum: [finance, maintenance, records, general] }
+        subject: { type: string }
+        description: { type: string }
+        status: { type: string, enum: [open, in_progress, resolved, closed, withdrawn] }
+        assignee_id: { type: [string, "null"], description: Defaulted by category routing (GET /ticket-routing). }
+        assignee_name: { type: [string, "null"] }
+        entered_by:
+          type: [string, "null"]
+          description: Admin user who raised this on the member's behalf; null when member-raised.
+        work_order_id:
+          type: [string, "null"]
+          description: Informational link, maintenance tickets only.
+        resolution_note: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        resolved_at: { type: [string, "null"], format: date-time }
+        closed_at: { type: [string, "null"], format: date-time }
+
+    TicketDetail:
+      allOf:
+        - $ref: "#/components/schemas/Ticket"
+        - type: object
+          properties:
+            comments:
+              type: array
+              items: { $ref: "#/components/schemas/TicketComment" }
+            attachments:
+              type: array
+              items: { $ref: "#/components/schemas/TicketAttachment" }
+            actions:
+              type: array
+              description: Status history / audit trail.
+              items:
+                type: object
+                required: [action, actor_id, at]
+                properties:
+                  action: { type: string, enum: [opened, assigned, resolved, reopened, withdrawn, closed] }
+                  actor_id: { type: string, description: Member, admin user, or "system" for auto-close. }
+                  at: { type: string, format: date-time }
+                  notes: { type: string }
+
+    TicketComment:
+      type: object
+      required: [comment_id, author_kind, author_name, body, created_at]
+      properties:
+        comment_id: { type: string }
+        author_kind: { type: string, enum: [member, staff] }
+        author_name: { type: string }
+        body: { type: string }
+        created_at: { type: string, format: date-time }
+
+    TicketAttachment:
+      type: object
+      required: [attachment_id, file_name, mime_type, uploaded_at]
+      properties:
+        attachment_id: { type: string }
+        file_name: { type: string }
+        mime_type: { type: string }
+        size_bytes: { type: integer }
+        uploaded_at: { type: string, format: date-time }
+
+    TicketRouting:
+      type: object
+      required: [finance, maintenance, records, general]
+      description: Default assignee (employee id with an admin account) per category.
+      properties:
+        finance: { type: string }
+        maintenance: { type: string }
+        records: { type: string }
+        general: { type: string }
+
+    BulletinPost:
+      type: object
+      required: [post_id, scope, title, body, pinned, status, author, posted_at]
+      properties:
+        post_id: { type: string }
+        scope: { type: string, enum: [society, project] }
+        project_id: { type: [string, "null"], description: Null for society posts. }
+        author:
+          type: object
+          description: The individual EC/PC member who posted.
+          required: [member_id, name]
+          properties:
+            member_id: { type: string }
+            name: { type: string }
+        title: { type: string }
+        body: { type: string }
+        pinned: { type: boolean }
+        status: { type: string, enum: [active, archived] }
+        attachments:
+          type: array
+          description: Registry documents attached to the post.
+          items:
+            type: object
+            required: [document_id, title]
+            properties:
+              document_id: { type: string }
+              title: { type: string }
+        posted_at: { type: string, format: date-time }
+        edited_at: { type: [string, "null"], format: date-time }
+
+    BulletinPostInput:
+      type: object
+      description: >
+        Create requires title and body; on PATCH all fields are optional
+        and omitted fields are unchanged.
+      properties:
+        title: { type: string, maxLength: 200 }
+        body: { type: string }
+        pinned: { type: boolean, default: false }
+        attachment_document_ids:
+          type: array
+          items: { type: string }
+
+    Message:
+      type: object
+      required: [message_id, subject, body, channels, sent_by, created_at, deliveries]
+      properties:
+        message_id: { type: string }
+        subject: { type: string }
+        body: { type: string }
+        channels:
+          type: array
+          items: { type: string, enum: [email, whatsapp] }
+        sent_by: { type: string, description: Acting admin user (audit trail). }
+        created_at: { type: string, format: date-time }
+        deliveries:
+          type: array
+          description: One entry per recipient per requested channel.
+          items: { $ref: "#/components/schemas/DeliveryEntry" }
+
+    DeliveryEntry:
+      type: object
+      required: [member_id, channel, status]
+      properties:
+        member_id: { type: string }
+        channel: { type: string, enum: [email, whatsapp] }
+        status:
+          type: string
+          enum: [queued, sent, delivered, failed, skipped]
+          description: skipped = WhatsApp without opt-in (email-only fallback) — the recorded consent trail.
+        detail: { type: [string, "null"], description: Failure reason or skip cause. }
+        updated_at: { type: [string, "null"], format: date-time }
