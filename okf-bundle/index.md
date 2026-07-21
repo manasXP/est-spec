@@ -11,7 +11,6 @@ The canonical home for Estatly's authored spec knowledge as an [Open Knowledge F
 * [specifications](specifications/index.md) — Narrative feature and domain specs derived from the requirements brief.
 * [architecture](architecture/index.md) — Backend and platform architecture concepts.
 * [api](api/index.md) — API Contracts — one `api/<surface>/` per client surface: REST narrative + `openapi.yaml`.
-* [references](references/index.md) — Pointers to external knowledge (System2.dev skills, sibling workspaces).
 
 # Meta
 

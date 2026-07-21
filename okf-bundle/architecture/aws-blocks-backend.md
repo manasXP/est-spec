@@ -11,7 +11,7 @@ tags: [aws, aws-blocks, backend, architecture]
 
 # Context
 
-The brief mandates: "Backend is to be developed in AWS using AWS Blocks." AWS Blocks is an infrastructure-from-code toolkit — each Block bundles cloud resources, a Lambda runtime, and a local implementation in one npm package; infrastructure is derived from the IFC layer (`aws-blocks/index.ts`), with no separate IaC. Working knowledge: [aws-blocks skill](/references/aws-blocks-skill.md).
+The brief mandates: "Backend is to be developed in AWS using AWS Blocks." AWS Blocks is an infrastructure-from-code toolkit — each Block bundles cloud resources, a Lambda runtime, and a local implementation in one npm package; infrastructure is derived from the IFC layer (`aws-blocks/index.ts`), with no separate IaC. Working knowledge: the aws-blocks skill evaluation notes (formerly `references/`, retired 2026-07-21) — SDK findings verified against the real packages by STR-001, and written back into this document.
 
 # Block mapping (draft)
 
