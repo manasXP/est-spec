@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="50 -30 1300 870" font-family="Helvetica,Arial,sans-serif">
+<rect x="50" y="-30" width="1300" height="870" fill="#FFFFFF"/>
+<text x="120" y="4" font-size="26" font-weight="700" fill="#1F3A93">2. Finance &amp; Ledgers</text>
+<polyline points="260,310 260,336 260,614 619,614 619,640" fill="none" stroke="#3A5BC7" stroke-width="1.6"/>
+<line x1="260.0" y1="326.0" x2="252.0" y2="310.0" stroke="#3A5BC7" stroke-width="1.6"/><line x1="260.0" y1="326.0" x2="268.0" y2="310.0" stroke="#3A5BC7" stroke-width="1.6"/><line x1="260.0" y1="326.0" x2="260.0" y2="310.0" stroke="#3A5BC7" stroke-width="1.6"/>
+<line x1="627.3" y1="629.0" x2="611.3" y2="629.0" stroke="#3A5BC7" stroke-width="1.6"/>
+<polyline points="620,270 620,296 620,614 701,614 701,640" fill="none" stroke="#3A5BC7" stroke-width="1.6"/>
+<line x1="620.0" y1="286.0" x2="612.0" y2="270.0" stroke="#3A5BC7" stroke-width="1.6"/><line x1="620.0" y1="286.0" x2="628.0" y2="270.0" stroke="#3A5BC7" stroke-width="1.6"/><line x1="620.0" y1="286.0" x2="620.0" y2="270.0" stroke="#3A5BC7" stroke-width="1.6"/>
+<line x1="708.7" y1="629.0" x2="692.7" y2="629.0" stroke="#3A5BC7" stroke-width="1.6"/>
+<polyline points="480,175 454,175 426,175 426,195 400,195" fill="none" stroke="#3A5BC7" stroke-width="1.6"/>
+<line x1="464.0" y1="175.0" x2="480.0" y2="167.0" stroke="#3A5BC7" stroke-width="1.6"/><line x1="464.0" y1="175.0" x2="480.0" y2="183.0" stroke="#3A5BC7" stroke-width="1.6"/><line x1="464.0" y1="175.0" x2="480.0" y2="175.0" stroke="#3A5BC7" stroke-width="1.6"/>
+<line x1="416.0" y1="195.0" x2="400.0" y2="203.0" stroke="#3A5BC7" stroke-width="1.6"/><line x1="416.0" y1="195.0" x2="400.0" y2="187.0" stroke="#3A5BC7" stroke-width="1.6"/><line x1="416.0" y1="195.0" x2="400.0" y2="195.0" stroke="#3A5BC7" stroke-width="1.6"/><line x1="420.0" y1="203.0" x2="420.0" y2="187.0" stroke="#3A5BC7" stroke-width="1.6"/>
+<rect x="399" y="166" width="54" height="16" fill="#FFFFFF" opacity="0.9"/>
+<text x="426" y="178" font-size="11" fill="#555" text-anchor="middle">settles</text>
+<polyline points="840,165 814,165 786,165 786,175 760,175" fill="none" stroke="#3A5BC7" stroke-width="1.6"/>
+<line x1="829.0" y1="157.0" x2="829.0" y2="173.0" stroke="#3A5BC7" stroke-width="1.6"/>
+<line x1="771.0" y1="183.0" x2="771.0" y2="167.0" stroke="#3A5BC7" stroke-width="1.6"/>
+<polyline points="660,485 634,485 606,485 606,485 580,485" fill="none" stroke="#3A5BC7" stroke-width="1.6"/>
+<line x1="644.0" y1="485.0" x2="660.0" y2="477.0" stroke="#3A5BC7" stroke-width="1.6"/><line x1="644.0" y1="485.0" x2="660.0" y2="493.0" stroke="#3A5BC7" stroke-width="1.6"/><line x1="644.0" y1="485.0" x2="660.0" y2="485.0" stroke="#3A5BC7" stroke-width="1.6"/>
+<line x1="591.0" y1="493.0" x2="591.0" y2="477.0" stroke="#3A5BC7" stroke-width="1.6"/>
+<polyline points="940,485 966,485 974,485 974,465 1000,465" fill="none" stroke="#3A5BC7" stroke-width="1.6"/>
+<line x1="956.0" y1="485.0" x2="940.0" y2="493.0" stroke="#3A5BC7" stroke-width="1.6"/><line x1="956.0" y1="485.0" x2="940.0" y2="477.0" stroke="#3A5BC7" stroke-width="1.6"/><line x1="956.0" y1="485.0" x2="940.0" y2="485.0" stroke="#3A5BC7" stroke-width="1.6"/>
+<line x1="989.0" y1="457.0" x2="989.0" y2="473.0" stroke="#3A5BC7" stroke-width="1.6"/>
+<rect x="120" y="80" width="280" height="230" rx="4" fill="#FFFFFF" stroke="#3A5BC7" stroke-width="1.5"/>
+<path d="M 120 110 V 86 Q 120 80 126 80 H 394 Q 400 80 400 86 V 110 Z" fill="#EAF2FF" stroke="#3A5BC7" stroke-width="1.5"/>
+<text x="260" y="100" font-size="13" font-weight="700" fill="#12245B" text-anchor="middle">Charge</text>
+<line x1="120" y1="110" x2="400" y2="110" stroke="#D5DEF2" stroke-width="1"/>
+<text x="130" y="124" font-size="11.5" font-weight="700" font-style="normal" fill="#12245B">PK charge_id</text>
+<line x1="120" y1="130" x2="400" y2="130" stroke="#D5DEF2" stroke-width="1"/>
+<text x="130" y="144" font-size="11.5" font-weight="400" font-style="italic" fill="#333">FK member_id</text>
+<line x1="120" y1="150" x2="400" y2="150" stroke="#D5DEF2" stroke-width="1"/>
+<text x="130" y="164" font-size="11.5" font-weight="400" font-style="italic" fill="#333">FK ownership_id</text>
+<line x1="120" y1="170" x2="400" y2="170" stroke="#D5DEF2" stroke-width="1"/>
+<text x="130" y="184" font-size="11.5" font-weight="400" font-style="italic" fill="#333">FK asset_id</text>
+<line x1="120" y1="190" x2="400" y2="190" stroke="#D5DEF2" stroke-width="1"/>
+<text x="130" y="204" font-size="11.5" font-weight="400" font-style="normal" fill="#333">type (asset|maintenance|late_fee)</text>
+<line x1="120" y1="210" x2="400" y2="210" stroke="#D5DEF2" stroke-width="1"/>
+<text x="130" y="224" font-size="11.5" font-weight="400" font-style="normal" fill="#333">amount</text>
+<line x1="120" y1="230" x2="400" y2="230" stroke="#D5DEF2" stroke-width="1"/>
+<text x="130" y="244" font-size="11.5" font-weight="400" font-style="normal" fill="#333">gst_amount</text>
+<line x1="120" y1="250" x2="400" y2="250" stroke="#D5DEF2" stroke-width="1"/>
+<text x="130" y="264" font-size="11.5" font-weight="400" font-style="normal" fill="#333">due_date</text>
+<line x1="120" y1="270" x2="400" y2="270" stroke="#D5DEF2" stroke-width="1"/>
+<text x="130" y="284" font-size="11.5" font-weight="400" font-style="normal" fill="#333">status</text>
+<line x1="120" y1="290" x2="400" y2="290" stroke="#D5DEF2" stroke-width="1"/>
+<text x="130" y="304" font-size="11.5" font-weight="400" font-style="normal" fill="#333">financial_year</text>
+<rect x="480" y="80" width="280" height="190" rx="4" fill="#FFFFFF" stroke="#3A5BC7" stroke-width="1.5"/>
+<path d="M 480 110 V 86 Q 480 80 486 80 H 754 Q 760 80 760 86 V 110 Z" fill="#EAF2FF" stroke="#3A5BC7" stroke-width="1.5"/>
+<text x="620" y="100" font-size="13" font-weight="700" fill="#12245B" text-anchor="middle">Payment</text>
+<line x1="480" y1="110" x2="760" y2="110" stroke="#D5DEF2" stroke-width="1"/>
+<text x="490" y="124" font-size="11.5" font-weight="700" font-style="normal" fill="#12245B">PK payment_id</text>
+<line x1="480" y1="130" x2="760" y2="130" stroke="#D5DEF2" stroke-width="1"/>
+<text x="490" y="144" font-size="11.5" font-weight="400" font-style="italic" fill="#333">FK member_id</text>
+<line x1="480" y1="150" x2="760" y2="150" stroke="#D5DEF2" stroke-width="1"/>
+<text x="490" y="164" font-size="11.5" font-weight="400" font-style="normal" fill="#333">charge_ids (settled whole)</text>
+<line x1="480" y1="170" x2="760" y2="170" stroke="#D5DEF2" stroke-width="1"/>
+<text x="490" y="184" font-size="11.5" font-weight="400" font-style="normal" fill="#333">amount</text>
+<line x1="480" y1="190" x2="760" y2="190" stroke="#D5DEF2" stroke-width="1"/>
+<text x="490" y="204" font-size="11.5" font-weight="400" font-style="normal" fill="#333">channel (gateway|offline)</text>
+<line x1="480" y1="210" x2="760" y2="210" stroke="#D5DEF2" stroke-width="1"/>
+<text x="490" y="224" font-size="11.5" font-weight="400" font-style="normal" fill="#333">provider_ref (opt)</text>
+<line x1="480" y1="230" x2="760" y2="230" stroke="#D5DEF2" stroke-width="1"/>
+<text x="490" y="244" font-size="11.5" font-weight="400" font-style="normal" fill="#333">status</text>
+<line x1="480" y1="250" x2="760" y2="250" stroke="#D5DEF2" stroke-width="1"/>
+<text x="490" y="264" font-size="11.5" font-weight="400" font-style="normal" fill="#333">created_at</text>
+<rect x="840" y="100" width="280" height="130" rx="4" fill="#FFFFFF" stroke="#3A5BC7" stroke-width="1.5"/>
+<path d="M 840 130 V 106 Q 840 100 846 100 H 1114 Q 1120 100 1120 106 V 130 Z" fill="#EAF2FF" stroke="#3A5BC7" stroke-width="1.5"/>
+<text x="980" y="120" font-size="13" font-weight="700" fill="#12245B" text-anchor="middle">Receipt</text>
+<line x1="840" y1="130" x2="1120" y2="130" stroke="#D5DEF2" stroke-width="1"/>
+<text x="850" y="144" font-size="11.5" font-weight="700" font-style="normal" fill="#12245B">PK receipt_id</text>
+<line x1="840" y1="150" x2="1120" y2="150" stroke="#D5DEF2" stroke-width="1"/>
+<text x="850" y="164" font-size="11.5" font-weight="400" font-style="italic" fill="#333">FK payment_id</text>
+<line x1="840" y1="170" x2="1120" y2="170" stroke="#D5DEF2" stroke-width="1"/>
+<text x="850" y="184" font-size="11.5" font-weight="400" font-style="normal" fill="#333">receipt_number (gapless/FY)</text>
+<line x1="840" y1="190" x2="1120" y2="190" stroke="#D5DEF2" stroke-width="1"/>
+<text x="850" y="204" font-size="11.5" font-weight="400" font-style="normal" fill="#333">financial_year</text>
+<line x1="840" y1="210" x2="1120" y2="210" stroke="#D5DEF2" stroke-width="1"/>
+<text x="850" y="224" font-size="11.5" font-weight="400" font-style="normal" fill="#333">issued_at</text>
+<rect x="300" y="420" width="280" height="130" rx="4" fill="#FFFFFF" stroke="#3A5BC7" stroke-width="1.5"/>
+<path d="M 300 450 V 426 Q 300 420 306 420 H 574 Q 580 420 580 426 V 450 Z" fill="#EAF2FF" stroke="#3A5BC7" stroke-width="1.5"/>
+<text x="440" y="440" font-size="13" font-weight="700" fill="#12245B" text-anchor="middle">JournalEntry</text>
+<line x1="300" y1="450" x2="580" y2="450" stroke="#D5DEF2" stroke-width="1"/>
+<text x="310" y="464" font-size="11.5" font-weight="700" font-style="normal" fill="#12245B">PK entry_id</text>
+<line x1="300" y1="470" x2="580" y2="470" stroke="#D5DEF2" stroke-width="1"/>
+<text x="310" y="484" font-size="11.5" font-weight="400" font-style="normal" fill="#333">description</text>
+<line x1="300" y1="490" x2="580" y2="490" stroke="#D5DEF2" stroke-width="1"/>
+<text x="310" y="504" font-size="11.5" font-weight="400" font-style="normal" fill="#333">posted_at</text>
+<line x1="300" y1="510" x2="580" y2="510" stroke="#D5DEF2" stroke-width="1"/>
+<text x="310" y="524" font-size="11.5" font-weight="400" font-style="normal" fill="#333">financial_year</text>
+<line x1="300" y1="530" x2="580" y2="530" stroke="#D5DEF2" stroke-width="1"/>
+<text x="310" y="544" font-size="11.5" font-weight="400" font-style="normal" fill="#333">source (charge|payment|invoice|manual)</text>
+<rect x="660" y="420" width="280" height="130" rx="4" fill="#FFFFFF" stroke="#3A5BC7" stroke-width="1.5"/>
+<path d="M 660 450 V 426 Q 660 420 666 420 H 934 Q 940 420 940 426 V 450 Z" fill="#EAF2FF" stroke="#3A5BC7" stroke-width="1.5"/>
+<text x="800" y="440" font-size="13" font-weight="700" fill="#12245B" text-anchor="middle">JournalPosting</text>
+<line x1="660" y1="450" x2="940" y2="450" stroke="#D5DEF2" stroke-width="1"/>
+<text x="670" y="464" font-size="11.5" font-weight="700" font-style="normal" fill="#12245B">PK posting_id</text>
+<line x1="660" y1="470" x2="940" y2="470" stroke="#D5DEF2" stroke-width="1"/>
+<text x="670" y="484" font-size="11.5" font-weight="400" font-style="italic" fill="#333">FK entry_id</text>
+<line x1="660" y1="490" x2="940" y2="490" stroke="#D5DEF2" stroke-width="1"/>
+<text x="670" y="504" font-size="11.5" font-weight="400" font-style="italic" fill="#333">FK account_id</text>
+<line x1="660" y1="510" x2="940" y2="510" stroke="#D5DEF2" stroke-width="1"/>
+<text x="670" y="524" font-size="11.5" font-weight="400" font-style="normal" fill="#333">debit</text>
+<line x1="660" y1="530" x2="940" y2="530" stroke="#D5DEF2" stroke-width="1"/>
+<text x="670" y="544" font-size="11.5" font-weight="400" font-style="normal" fill="#333">credit</text>
+<rect x="1000" y="420" width="280" height="90" rx="4" fill="#FFFFFF" stroke="#3A5BC7" stroke-width="1.5"/>
+<path d="M 1000 450 V 426 Q 1000 420 1006 420 H 1274 Q 1280 420 1280 426 V 450 Z" fill="#EAF2FF" stroke="#3A5BC7" stroke-width="1.5"/>
+<text x="1140" y="440" font-size="13" font-weight="700" fill="#12245B" text-anchor="middle">LedgerAccount</text>
+<line x1="1000" y1="450" x2="1280" y2="450" stroke="#D5DEF2" stroke-width="1"/>
+<text x="1010" y="464" font-size="11.5" font-weight="700" font-style="normal" fill="#12245B">PK account_id</text>
+<line x1="1000" y1="470" x2="1280" y2="470" stroke="#D5DEF2" stroke-width="1"/>
+<text x="1010" y="484" font-size="11.5" font-weight="400" font-style="normal" fill="#333">name</text>
+<line x1="1000" y1="490" x2="1280" y2="490" stroke="#D5DEF2" stroke-width="1"/>
+<text x="1010" y="504" font-size="11.5" font-weight="400" font-style="normal" fill="#333">kind (bank|cash|member|vendor|expense|income)</text>
+<rect x="120" y="640" width="280" height="130" rx="4" fill="#FFFFFF" stroke="#3A5BC7" stroke-width="1.5"/>
+<path d="M 120 670 V 646 Q 120 640 126 640 H 394 Q 400 640 400 646 V 670 Z" fill="#FFF6DD" stroke="#3A5BC7" stroke-width="1.5"/>
+<text x="260" y="660" font-size="13" font-weight="700" fill="#12245B" text-anchor="middle">BooksOfAccount (derived views)</text>
+<line x1="120" y1="670" x2="400" y2="670" stroke="#D5DEF2" stroke-width="1"/>
+<text x="130" y="684" font-size="11.5" font-weight="400" font-style="normal" fill="#333">Bank Book</text>
+<line x1="120" y1="690" x2="400" y2="690" stroke="#D5DEF2" stroke-width="1"/>
+<text x="130" y="704" font-size="11.5" font-weight="400" font-style="normal" fill="#333">Cash Book</text>
+<line x1="120" y1="710" x2="400" y2="710" stroke="#D5DEF2" stroke-width="1"/>
+<text x="130" y="724" font-size="11.5" font-weight="400" font-style="normal" fill="#333">Payment Ledger</text>
+<line x1="120" y1="730" x2="400" y2="730" stroke="#D5DEF2" stroke-width="1"/>
+<text x="130" y="744" font-size="11.5" font-weight="400" font-style="normal" fill="#333">Expense Ledger</text>
+<line x1="120" y1="750" x2="400" y2="750" stroke="#D5DEF2" stroke-width="1"/>
+<text x="130" y="764" font-size="11.5" font-weight="400" font-style="normal" fill="#333">= projections over JournalPosting</text>
+<rect x="520" y="640" width="280" height="50" rx="4" fill="#FFFFFF" stroke="#3A5BC7" stroke-width="1.5"/>
+<path d="M 520 670 V 646 Q 520 640 526 640 H 794 Q 800 640 800 646 V 670 Z" fill="#F0F0F0" stroke="#3A5BC7" stroke-width="1.5"/>
+<text x="660" y="660" font-size="13" font-weight="700" fill="#12245B" text-anchor="middle">Member (ref → other tab)</text>
+<line x1="520" y1="670" x2="800" y2="670" stroke="#D5DEF2" stroke-width="1"/>
+<text x="530" y="684" font-size="11.5" font-weight="700" font-style="normal" fill="#12245B">PK member_id</text>
+</svg>

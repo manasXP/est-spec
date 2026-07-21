@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="70 -30 1220 730" font-family="Helvetica,Arial,sans-serif">
+<rect x="70" y="-30" width="1220" height="730" fill="#FFFFFF"/>
+<text x="140" y="4" font-size="26" font-weight="700" fill="#1F3A93">5. Member Requests (Ticketing)</text>
+<polyline points="560,185 534,185 466,185 466,189 440,189" fill="none" stroke="#3A5BC7" stroke-width="1.6"/>
+<line x1="544.0" y1="185.0" x2="560.0" y2="177.0" stroke="#3A5BC7" stroke-width="1.6"/><line x1="544.0" y1="185.0" x2="560.0" y2="193.0" stroke="#3A5BC7" stroke-width="1.6"/><line x1="544.0" y1="185.0" x2="560.0" y2="185.0" stroke="#3A5BC7" stroke-width="1.6"/>
+<line x1="451.0" y1="197.3" x2="451.0" y2="181.3" stroke="#3A5BC7" stroke-width="1.6"/>
+<polyline points="560,425 534,425 466,425 466,281 440,281" fill="none" stroke="#3A5BC7" stroke-width="1.6"/>
+<line x1="544.0" y1="425.0" x2="560.0" y2="417.0" stroke="#3A5BC7" stroke-width="1.6"/><line x1="544.0" y1="425.0" x2="560.0" y2="433.0" stroke="#3A5BC7" stroke-width="1.6"/><line x1="544.0" y1="425.0" x2="560.0" y2="425.0" stroke="#3A5BC7" stroke-width="1.6"/>
+<line x1="451.0" y1="288.7" x2="451.0" y2="272.7" stroke="#3A5BC7" stroke-width="1.6"/>
+<polyline points="440,144 466,144 914,144 914,145 940,145" fill="none" stroke="#3A5BC7" stroke-width="1.6"/>
+<line x1="456.0" y1="143.7" x2="440.0" y2="151.7" stroke="#3A5BC7" stroke-width="1.6"/><line x1="456.0" y1="143.7" x2="440.0" y2="135.7" stroke="#3A5BC7" stroke-width="1.6"/><line x1="456.0" y1="143.7" x2="440.0" y2="143.7" stroke="#3A5BC7" stroke-width="1.6"/>
+<line x1="929.0" y1="137.0" x2="929.0" y2="153.0" stroke="#3A5BC7" stroke-width="1.6"/>
+<rect x="880" y="135" width="67" height="16" fill="#FFFFFF" opacity="0.9"/>
+<text x="914" y="147" font-size="11" fill="#555" text-anchor="middle">raised by</text>
+<polyline points="440,235 466,235 914,235 914,323 940,323" fill="none" stroke="#3A5BC7" stroke-width="1.6"/>
+<line x1="456.0" y1="235.0" x2="440.0" y2="243.0" stroke="#3A5BC7" stroke-width="1.6"/><line x1="456.0" y1="235.0" x2="440.0" y2="227.0" stroke="#3A5BC7" stroke-width="1.6"/><line x1="456.0" y1="235.0" x2="440.0" y2="235.0" stroke="#3A5BC7" stroke-width="1.6"/>
+<line x1="929.0" y1="314.7" x2="929.0" y2="330.7" stroke="#3A5BC7" stroke-width="1.6"/><circle cx="924.0" cy="322.7" r="4.5" fill="#fff" stroke="#3A5BC7" stroke-width="1.6"/>
+<rect x="884" y="226" width="61" height="16" fill="#FFFFFF" opacity="0.9"/>
+<text x="914" y="238" font-size="11" fill="#555" text-anchor="middle">assignee</text>
+<polyline points="440,326 466,326 914,326 914,505 940,505" fill="none" stroke="#3A5BC7" stroke-width="1.6"/>
+<line x1="456.0" y1="326.3" x2="440.0" y2="334.3" stroke="#3A5BC7" stroke-width="1.6"/><line x1="456.0" y1="326.3" x2="440.0" y2="318.3" stroke="#3A5BC7" stroke-width="1.6"/><line x1="456.0" y1="326.3" x2="440.0" y2="326.3" stroke="#3A5BC7" stroke-width="1.6"/>
+<line x1="929.0" y1="497.0" x2="929.0" y2="513.0" stroke="#3A5BC7" stroke-width="1.6"/><circle cx="924.0" cy="505.0" r="4.5" fill="#fff" stroke="#3A5BC7" stroke-width="1.6"/>
+<polyline points="420,595 446,595 914,595 914,327 940,327" fill="none" stroke="#3A5BC7" stroke-width="1.6"/>
+<line x1="436.0" y1="595.0" x2="420.0" y2="603.0" stroke="#3A5BC7" stroke-width="1.6"/><line x1="436.0" y1="595.0" x2="420.0" y2="587.0" stroke="#3A5BC7" stroke-width="1.6"/><line x1="436.0" y1="595.0" x2="420.0" y2="595.0" stroke="#3A5BC7" stroke-width="1.6"/>
+<line x1="929.0" y1="319.3" x2="929.0" y2="335.3" stroke="#3A5BC7" stroke-width="1.6"/>
+<rect x="140" y="80" width="300" height="310" rx="4" fill="#FFFFFF" stroke="#3A5BC7" stroke-width="1.5"/>
+<path d="M 140 110 V 86 Q 140 80 146 80 H 434 Q 440 80 440 86 V 110 Z" fill="#EAF2FF" stroke="#3A5BC7" stroke-width="1.5"/>
+<text x="290" y="100" font-size="13" font-weight="700" fill="#12245B" text-anchor="middle">Ticket</text>
+<line x1="140" y1="110" x2="440" y2="110" stroke="#D5DEF2" stroke-width="1"/>
+<text x="150" y="124" font-size="11.5" font-weight="700" font-style="normal" fill="#12245B">PK ticket_id</text>
+<line x1="140" y1="130" x2="440" y2="130" stroke="#D5DEF2" stroke-width="1"/>
+<text x="150" y="144" font-size="11.5" font-weight="400" font-style="normal" fill="#333">category (finance|maintenance|records|general)</text>
+<line x1="140" y1="150" x2="440" y2="150" stroke="#D5DEF2" stroke-width="1"/>
+<text x="150" y="164" font-size="11.5" font-weight="400" font-style="normal" fill="#333">subject</text>
+<line x1="140" y1="170" x2="440" y2="170" stroke="#D5DEF2" stroke-width="1"/>
+<text x="150" y="184" font-size="11.5" font-weight="400" font-style="normal" fill="#333">description</text>
+<line x1="140" y1="190" x2="440" y2="190" stroke="#D5DEF2" stroke-width="1"/>
+<text x="150" y="204" font-size="11.5" font-weight="400" font-style="italic" fill="#333">FK raised_by (member)</text>
+<line x1="140" y1="210" x2="440" y2="210" stroke="#D5DEF2" stroke-width="1"/>
+<text x="150" y="224" font-size="11.5" font-weight="400" font-style="italic" fill="#333">FK entered_by (opt)</text>
+<line x1="140" y1="230" x2="440" y2="230" stroke="#D5DEF2" stroke-width="1"/>
+<text x="150" y="244" font-size="11.5" font-weight="400" font-style="normal" fill="#333">status</text>
+<line x1="140" y1="250" x2="440" y2="250" stroke="#D5DEF2" stroke-width="1"/>
+<text x="150" y="264" font-size="11.5" font-weight="400" font-style="italic" fill="#333">FK assignee (employee)</text>
+<line x1="140" y1="270" x2="440" y2="270" stroke="#D5DEF2" stroke-width="1"/>
+<text x="150" y="284" font-size="11.5" font-weight="400" font-style="italic" fill="#333">FK work_order (opt)</text>
+<line x1="140" y1="290" x2="440" y2="290" stroke="#D5DEF2" stroke-width="1"/>
+<text x="150" y="304" font-size="11.5" font-weight="400" font-style="normal" fill="#333">resolution_note (opt)</text>
+<line x1="140" y1="310" x2="440" y2="310" stroke="#D5DEF2" stroke-width="1"/>
+<text x="150" y="324" font-size="11.5" font-weight="400" font-style="normal" fill="#333">created_at</text>
+<line x1="140" y1="330" x2="440" y2="330" stroke="#D5DEF2" stroke-width="1"/>
+<text x="150" y="344" font-size="11.5" font-weight="400" font-style="normal" fill="#333">updated_at</text>
+<line x1="140" y1="350" x2="440" y2="350" stroke="#D5DEF2" stroke-width="1"/>
+<text x="150" y="364" font-size="11.5" font-weight="400" font-style="normal" fill="#333">resolved_at (opt)</text>
+<line x1="140" y1="370" x2="440" y2="370" stroke="#D5DEF2" stroke-width="1"/>
+<text x="150" y="384" font-size="11.5" font-weight="400" font-style="normal" fill="#333">closed_at (opt)</text>
+<rect x="560" y="120" width="280" height="130" rx="4" fill="#FFFFFF" stroke="#3A5BC7" stroke-width="1.5"/>
+<path d="M 560 150 V 126 Q 560 120 566 120 H 834 Q 840 120 840 126 V 150 Z" fill="#EAF2FF" stroke="#3A5BC7" stroke-width="1.5"/>
+<text x="700" y="140" font-size="13" font-weight="700" fill="#12245B" text-anchor="middle">TicketComment</text>
+<line x1="560" y1="150" x2="840" y2="150" stroke="#D5DEF2" stroke-width="1"/>
+<text x="570" y="164" font-size="11.5" font-weight="700" font-style="normal" fill="#12245B">PK comment_id</text>
+<line x1="560" y1="170" x2="840" y2="170" stroke="#D5DEF2" stroke-width="1"/>
+<text x="570" y="184" font-size="11.5" font-weight="400" font-style="italic" fill="#333">FK ticket_id</text>
+<line x1="560" y1="190" x2="840" y2="190" stroke="#D5DEF2" stroke-width="1"/>
+<text x="570" y="204" font-size="11.5" font-weight="400" font-style="normal" fill="#333">author</text>
+<line x1="560" y1="210" x2="840" y2="210" stroke="#D5DEF2" stroke-width="1"/>
+<text x="570" y="224" font-size="11.5" font-weight="400" font-style="normal" fill="#333">body</text>
+<line x1="560" y1="230" x2="840" y2="230" stroke="#D5DEF2" stroke-width="1"/>
+<text x="570" y="244" font-size="11.5" font-weight="400" font-style="normal" fill="#333">created_at</text>
+<rect x="560" y="360" width="280" height="130" rx="4" fill="#FFFFFF" stroke="#3A5BC7" stroke-width="1.5"/>
+<path d="M 560 390 V 366 Q 560 360 566 360 H 834 Q 840 360 840 366 V 390 Z" fill="#EAF2FF" stroke="#3A5BC7" stroke-width="1.5"/>
+<text x="700" y="380" font-size="13" font-weight="700" fill="#12245B" text-anchor="middle">TicketAttachment</text>
+<line x1="560" y1="390" x2="840" y2="390" stroke="#D5DEF2" stroke-width="1"/>
+<text x="570" y="404" font-size="11.5" font-weight="700" font-style="normal" fill="#12245B">PK attachment_id</text>
+<line x1="560" y1="410" x2="840" y2="410" stroke="#D5DEF2" stroke-width="1"/>
+<text x="570" y="424" font-size="11.5" font-weight="400" font-style="italic" fill="#333">FK ticket_id</text>
+<line x1="560" y1="430" x2="840" y2="430" stroke="#D5DEF2" stroke-width="1"/>
+<text x="570" y="444" font-size="11.5" font-weight="400" font-style="normal" fill="#333">file_name</text>
+<line x1="560" y1="450" x2="840" y2="450" stroke="#D5DEF2" stroke-width="1"/>
+<text x="570" y="464" font-size="11.5" font-weight="400" font-style="normal" fill="#333">mime_type</text>
+<line x1="560" y1="470" x2="840" y2="470" stroke="#D5DEF2" stroke-width="1"/>
+<text x="570" y="484" font-size="11.5" font-weight="400" font-style="normal" fill="#333">size</text>
+<rect x="140" y="560" width="280" height="70" rx="4" fill="#FFFFFF" stroke="#3A5BC7" stroke-width="1.5"/>
+<path d="M 140 590 V 566 Q 140 560 146 560 H 414 Q 420 560 420 566 V 590 Z" fill="#FFF6DD" stroke="#3A5BC7" stroke-width="1.5"/>
+<text x="280" y="580" font-size="13" font-weight="700" fill="#12245B" text-anchor="middle">TicketRouting</text>
+<line x1="140" y1="590" x2="420" y2="590" stroke="#D5DEF2" stroke-width="1"/>
+<text x="150" y="604" font-size="11.5" font-weight="700" font-style="normal" fill="#12245B">PK category</text>
+<line x1="140" y1="610" x2="420" y2="610" stroke="#D5DEF2" stroke-width="1"/>
+<text x="150" y="624" font-size="11.5" font-weight="400" font-style="italic" fill="#333">FK default_assignee (employee)</text>
+<rect x="940" y="120" width="280" height="50" rx="4" fill="#FFFFFF" stroke="#3A5BC7" stroke-width="1.5"/>
+<path d="M 940 150 V 126 Q 940 120 946 120 H 1214 Q 1220 120 1220 126 V 150 Z" fill="#F0F0F0" stroke="#3A5BC7" stroke-width="1.5"/>
+<text x="1080" y="140" font-size="13" font-weight="700" fill="#12245B" text-anchor="middle">Member (ref → other tab)</text>
+<line x1="940" y1="150" x2="1220" y2="150" stroke="#D5DEF2" stroke-width="1"/>
+<text x="950" y="164" font-size="11.5" font-weight="700" font-style="normal" fill="#12245B">PK member_id</text>
+<rect x="940" y="300" width="280" height="50" rx="4" fill="#FFFFFF" stroke="#3A5BC7" stroke-width="1.5"/>
+<path d="M 940 330 V 306 Q 940 300 946 300 H 1214 Q 1220 300 1220 306 V 330 Z" fill="#F0F0F0" stroke="#3A5BC7" stroke-width="1.5"/>
+<text x="1080" y="320" font-size="13" font-weight="700" fill="#12245B" text-anchor="middle">Employee (ref → other tab)</text>
+<line x1="940" y1="330" x2="1220" y2="330" stroke="#D5DEF2" stroke-width="1"/>
+<text x="950" y="344" font-size="11.5" font-weight="700" font-style="normal" fill="#12245B">PK employee_id</text>
+<rect x="940" y="480" width="280" height="50" rx="4" fill="#FFFFFF" stroke="#3A5BC7" stroke-width="1.5"/>
+<path d="M 940 510 V 486 Q 940 480 946 480 H 1214 Q 1220 480 1220 486 V 510 Z" fill="#F0F0F0" stroke="#3A5BC7" stroke-width="1.5"/>
+<text x="1080" y="500" font-size="13" font-weight="700" fill="#12245B" text-anchor="middle">WorkOrder (ref → other tab)</text>
+<line x1="940" y1="510" x2="1220" y2="510" stroke="#D5DEF2" stroke-width="1"/>
+<text x="950" y="524" font-size="11.5" font-weight="700" font-style="normal" fill="#12245B">PK work_order_id</text>
+</svg>

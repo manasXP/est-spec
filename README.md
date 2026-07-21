@@ -9,7 +9,7 @@ Specifications for Estatly, a single-society housing-society management SaaS.
   - `architecture/` — backend (AWS Blocks) and platform architecture
   - `api/` — API contracts, one folder per client surface (admin, mobile)
   - `references/` — pointers to external knowledge
-- `diagrams/` — ERDs of the full data model: `estatly-erd.drawio` (10 pages, one per logical group; open with [draw.io](https://app.diagrams.net)) and browsable renders in `diagrams/svg/`
+- `diagrams/` — ERDs of the full data model: `estatly-erd.drawio` (10 pages, one per logical group; open with [draw.io](https://app.diagrams.net)) with browsable renders in `diagrams/svg/`; plus a condensed 5-tab LucidChart set in `diagrams/lucidchart/` (SVG/PNG exports + live-document link in its `ERD.md`)
 
 ## How to review
 
