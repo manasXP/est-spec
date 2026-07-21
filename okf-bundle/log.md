@@ -1,6 +1,7 @@
 # Bundle Update Log
 
 ## 2026-07-21
+* **Update**: Consolidated the data-model ERDs on the **LucidChart set** (`diagrams/lucidchart/` — 5 tabs, SVG/PNG exports, view-only live link in its `ERD.md`); removed the draw.io 10-page set (`estatly-erd.drawio` + `diagrams/svg/`) it briefly coexisted with. Repo README's review path updated.
 * **Update**: Retired the `references/` section (`aws-blocks-skill.md`, `references/index.md`) — the skill-evaluation notes served the architecture drafting and are superseded by STR-001's build-time verification of the real Blocks SDK (findings written back into [AWS Blocks Backend](/architecture/aws-blocks-backend.md)). Unlinked the dangling references here, in the [index](/index.md), and in the architecture doc.
 * **Update**: Added data-model ERDs to `EST-Spec/diagrams/` — `estatly-erd.drawio` (10 pages: overview + one per logical group, full fields and invariants, generated from this bundle's specs and both OpenAPI contracts) with browsable SVG renders in `diagrams/svg/`; linked from the repo README's review path.
 
