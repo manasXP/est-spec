@@ -9,4 +9,4 @@ The ERD is live in LucidChart with **5 tabs**, one per entity group from the okf
 
 Each entity is an editable table with PK/FK-annotated attributes and crow's-foot relationship lines. Grey "ref → other tab" stubs (Member, Employee, Project, WorkOrder) mark cross-group foreign keys so each page stays self-contained and readable.
 
-Open it here: [https://lucid.app/lucidchart/5c9fe189-0314-434c-996c-2ef2441f9d91/edit](https://lucid.app/lucidchart/5c9fe189-0314-434c-996c-2ef2441f9d91/edit)
+Open it here (view-only): [https://lucid.app/lucidchart/5c9fe189-0314-434c-996c-2ef2441f9d91/view](https://lucid.app/lucidchart/5c9fe189-0314-434c-996c-2ef2441f9d91/view)
