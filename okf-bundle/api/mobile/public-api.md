@@ -1,11 +1,11 @@
 ---
 type: API Contract
 title: Mobile Public API
-description: REST contract for the mobile app — member profile, ownerships with asset detail, charges, payment initiation, receipts, member request tickets, bulletin boards, the EC approval inbox, and the PC surface.
+description: REST contract for the mobile app — member profile, ownerships with asset detail, charges, payment initiation, receipts, member request tickets, bulletin boards, meetings & voting, the EC approval inbox, and the PC surface.
 status: Draft
-version: 0.8.0
+version: 0.9.0
 owner: Manas Pradhan
-timestamp: 2026-07-20T00:00:00Z
+timestamp: 2026-07-21T00:00:00Z
 tags: [api, rest, mobile, members]
 resource: ./openapi.yaml
 ---
@@ -14,7 +14,7 @@ resource: ./openapi.yaml
 
 The REST surface consumed by the shared **KMP API client** in the iOS/Android apps (see [Platforms](/specifications/platforms.md)). Three surfaces in one contract:
 
-- **`/me`** — a member's own standing, payments, request tickets ([Member Requests](/specifications/member-requests.md), decided 2026-07-20), and the bulletin feed ([Communication](/specifications/communication.md), decided 2026-07-20), available to every authenticated member.
+- **`/me`** — a member's own standing, payments, request tickets ([Member Requests](/specifications/member-requests.md), decided 2026-07-20), the bulletin feed ([Communication](/specifications/communication.md), decided 2026-07-20), and **meetings & voting** ([Meetings, Voting & Resolutions](/specifications/meetings-and-voting.md), decided 2026-07-21) — roll-scoped, so the same surface serves GBM ballots, project-GBM ballots, and EC/PC meeting votes for seat holders — available to every authenticated member.
 - **`/ec`** — the **EC approval inbox** (decided 2026-07-20): EC members review and approve/reject vendor invoices on the go. Normal approve/reject requires the designated-approver capability; **override approvals on rejected invoices are open to any EC member** (`403` code `capability_required` otherwise). Same workflow semantics as the [Admin Panel API](/api/admin/public-api.md).
 - **`/pc`** — the **PC surface** (decided 2026-07-20, amended same day): members sitting on a [Project Committee](/specifications/governance-and-roles.md) read their project's record, committee roster, **all** of that project's [documents](/specifications/document-management.md) — `member_visible` does not gate PC reads — and its full [asset registry](/specifications/asset-management.md). Read-only **except one write** — posting to the PC's own project bulletin board ([Communication](/specifications/communication.md)); other PC administration (uploads, metadata, flags) stays on the admin panel through existing roles.
 
@@ -77,6 +77,21 @@ Staff replies and resolution push a notification to the member's registered devi
 
 Boards are read-only for members at large — no comments or reactions; composing happens on the [Admin Panel API](/api/admin/public-api.md) (EC, society board) and the `/pc` write below (PC, project board).
 
+## Meetings & voting ([Meetings, Voting & Resolutions](/specifications/meetings-and-voting.md))
+
+Roll-scoped: a member sees exactly the meetings whose voter roll they are on (or will be on) — GBMs, project GBMs of owned projects, and EC/PC meetings for seat holders. Voting and signing are authorized by the frozen roll and signatory configuration; there are no meeting writes on `/ec` or `/pc`.
+
+| Method & path | Purpose |
+|---|---|
+| `GET /v1/me/meetings` | The member's meetings; filter `?status=` |
+| `GET /v1/me/meetings/{meetingId}` | Agenda, motions with status and tallies (motion votes are open; election tallies only once declared), election summary, and the caller's cast/not-cast state per item |
+| `POST /v1/me/motions/{motionId}/votes` | Cast `yes \| no \| abstain` — final once cast; 403 if not on the frozen roll, 409 on duplicate or when voting is not open |
+| `POST /v1/me/motions/{motionId}/sign` | Typed e-acknowledgment by a required signatory (President/General Secretary/PC Chair are members); 403 unless a required signatory, 409 unless `passed` |
+| `GET /v1/me/elections/{electionId}` | Contests, accepted candidates, and the caller's voted flags — **ballot choices are never returned by any endpoint** |
+| `POST /v1/me/elections/{electionId}/nominations` | **Self**-nominate during the nomination window; 422 if ineligible (not `active`; for PC contests, no ownership in the project) |
+| `POST /v1/me/nominations/{nominationId}/withdraw` | Withdraw own nomination before nominations close |
+| `POST /v1/me/elections/{electionId}/votes` | Cast the ballot — one immutable submission per contest (up to `seat_count` choices in a multi-seat contest); 403 not on roll, 409 duplicate/not open |
+
 ## EC approval inbox (designated approvers only)
 
 | Method & path | Purpose |
@@ -113,8 +128,9 @@ Read-only except the project-board posting write ([Governance & Roles](/specific
 
 - **Sign-in:** Cognito **phone-OTP primary** (phone is a required member attribute), email as recovery/secondary channel.
 - **Society/notice endpoints:** excluded from v1 — not in the brief.
-- **Push notifications:** in v1 scope for **due-date reminders** ([Payments](/specifications/payments.md) member-initiated collection depends on them), **ticket updates** (staff reply, resolution), and **new bulletin posts** ([Communication](/specifications/communication.md)). Device registration endpoints are part of this contract.
+- **Push notifications:** in v1 scope for **due-date reminders** ([Payments](/specifications/payments.md) member-initiated collection depends on them), **ticket updates** (staff reply, resolution), **new bulletin posts** ([Communication](/specifications/communication.md)), and **meeting events** — notice sent, voting opened, results declared, each deep-linking to the meeting detail ([Meetings, Voting & Resolutions](/specifications/meetings-and-voting.md), added 2026-07-21). Device registration endpoints are part of this contract.
 - **Member requests** (decided 2026-07-20): `/me/tickets` per [Member Requests](/specifications/member-requests.md) — fixed category enum, withdraw/reopen member actions, ticket-scoped attachments via presigned upload (not registry documents), 7-day reopen window before auto-close.
 - **Communication** (decided 2026-07-20): `/me/bulletin` feed (society + owned-project boards, pinned first, archived hidden), `PUT /me/whatsapp-consent` for the opt-in flag, and the `/pc` posting write per [Communication](/specifications/communication.md). Direct messages have **no mobile surface** — they arrive as email/WhatsApp, not in-app.
 - **Assets** (decided 2026-07-20): the `Ownership` schema drops the embedded `asset_type`/`asset_label` for an embedded `asset` object per [Asset Management](/specifications/asset-management.md); `/pc` gains the project assets read. EC members get **no mobile asset surface in v1** — the all-projects view is admin-panel-only; a mobile `/ec` assets read is a fast-follow.
 - **Forced upgrade** (decided 2026-07-20): the `X-App-Version` / `426 Upgrade Required` gate above is **reserved in the v1 contract** so the mechanism exists in every installed app from day one; *enforcement* (setting `min_supported_version`) is a per-society operational act ([[EST-Deploy/release-and-rollback|Release & Rollback]]). Rationale: apps that predate the mechanism can never be force-upgraded.
+- **Meetings & voting** (decided 2026-07-21): all member voting rides on the roll-scoped `/me/meetings` surface per [Meetings, Voting & Resolutions](/specifications/meetings-and-voting.md) — no new `/ec` or `/pc` writes, preserving the read-only-except-one-write `/pc` decision. Votes are final once cast; election ballot choices are stored but never exposed by any endpoint; signing is a typed e-acknowledgment against the frozen resolution hash. Convening has no mobile surface in v1 (admin panel only).

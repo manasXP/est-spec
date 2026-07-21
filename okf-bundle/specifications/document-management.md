@@ -3,9 +3,9 @@ type: Specification
 title: Document Management
 description: Society-, project-, and member-level document registry with metadata search — generalizing the brief's ledger-linked scanned-document storage.
 status: Draft
-version: 0.4.0
+version: 0.5.0
 owner: Manas Pradhan
-timestamp: 2026-07-20T00:00:00Z
+timestamp: 2026-07-21T00:00:00Z
 tags: [documents, storage, search]
 ---
 
@@ -39,6 +39,10 @@ The **file is immutable** once uploaded — a correction is a new document plus 
 | Society | Bye-laws, registration certificate, AGM/EC meeting minutes, audit reports, insurance policies, statutory filings, circulars |
 | Project | Sanctioned plans, completion/occupancy certificates, NOCs, vendor contracts (cross-link to [Work Orders](/specifications/vendor-workflow.md)) |
 | Member | Share certificate, sale/transfer deeds, KYC, nomination forms, correspondence |
+
+# Relationship to resolutions & minutes (added 2026-07-21)
+
+Signed resolutions and concluded-meeting minutes from [Meetings, Voting & Resolutions](/specifications/meetings-and-voting.md) are exportable as PDFs registered here — **society level** under the seeded "AGM/EC meeting minutes" category for `gbm`/`ec` meetings, **project level** for `project_gbm`/`pc`. The registry holds the exported artifact only; the resolution record itself (frozen text, votes, signatures) is first-class data in the meetings surface, not a document.
 
 # Relationship to ledger-linked documents
 

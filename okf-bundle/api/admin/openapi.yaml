@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Estatly Admin Panel API
-  version: 0.7.0
+  version: 0.8.0
   description: >
     REST contract for the admin panel (draft). Narrative, conventions, and
     open questions: public-api.md beside this file. Role capabilities are
@@ -1687,6 +1687,717 @@ paths:
               schema: { $ref: "#/components/schemas/Message" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  # ── Meetings & motions (see specifications/meetings-and-voting.md) ─────
+  /meetings:
+    get:
+      operationId: listMeetings
+      summary: List meetings
+      parameters:
+        - name: kind
+          in: query
+          schema: { type: string, enum: [gbm, project_gbm, ec, pc] }
+        - name: project_id
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string, enum: [draft, notice_sent, in_progress, concluded, cancelled, all], default: all }
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: Page of meetings.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/Meeting" }
+    post:
+      operationId: createMeeting
+      summary: Convene a meeting
+      description: >
+        Convening gbm/ec meetings requires an EC role; project_gbm/pc
+        meetings Management or an EC role — 403 capability_required
+        otherwise. project_id is required for project kinds and must be
+        absent otherwise (422). Created in draft. The meeting is the
+        decision window, not a video call — it may stay in_progress
+        across a multi-day voting period.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MeetingInput" }
+      responses:
+        "201":
+          description: Convened (draft).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Meeting" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /meetings/{meetingId}:
+    parameters: [{ $ref: "#/components/parameters/meetingId" }]
+    get:
+      operationId: getMeeting
+      summary: One meeting with motions, election summary, and quorum progress
+      responses:
+        "200":
+          description: >
+            The meeting. Quorum progress against the frozen roll is read
+            off each motion's tally — ballots cast versus roll_size.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MeetingDetail" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      operationId: updateMeeting
+      summary: Amend a draft meeting
+      description: >
+        Editable while draft only — 409 once the notice is sent (cancel
+        and re-convene instead). kind and project_id are immutable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MeetingInput" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Meeting" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /meetings/{meetingId}/send-notice:
+    parameters: [{ $ref: "#/components/parameters/meetingId" }]
+    post:
+      operationId: sendMeetingNotice
+      summary: Publish the meeting notice
+      description: >
+        Publishes a pinned bulletin post to the meeting's audience board
+        (society board for gbm/ec, project board for project_gbm/pc) with
+        a push notification, and optionally a direct message; records
+        notice_sent_at. The per-recipient delivery log is the notice
+        audit trail (Communication spec). 409 unless the meeting is
+        draft.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                direct_message:
+                  type: boolean
+                  default: false
+                  description: Also deliver the notice as a direct message (email/WhatsApp per opt-in).
+      responses:
+        "200":
+          description: Notice published; status is notice_sent.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Meeting" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422":
+          description: The configured notice period cannot be met before scheduled_at (code notice_period_short).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /meetings/{meetingId}/start:
+    parameters: [{ $ref: "#/components/parameters/meetingId" }]
+    post:
+      operationId: startMeeting
+      summary: Start the meeting
+      description: >
+        Moves the meeting to in_progress — motions and elections can only
+        open for voting while their meeting is in_progress. 409 unless
+        notice_sent.
+      responses:
+        "200":
+          description: In progress.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Meeting" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /meetings/{meetingId}/conclude:
+    parameters: [{ $ref: "#/components/parameters/meetingId" }]
+    post:
+      operationId: concludeMeeting
+      summary: Conclude the meeting
+      responses:
+        "200":
+          description: Concluded.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Meeting" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: A motion is still open, or the election is not yet declared or cancelled.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /meetings/{meetingId}/cancel:
+    parameters: [{ $ref: "#/components/parameters/meetingId" }]
+    post:
+      operationId: cancelMeeting
+      summary: Cancel the meeting (before start only)
+      description: A cancelled noticed meeting re-notifies its audience.
+      responses:
+        "200":
+          description: Cancelled.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Meeting" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: The meeting has already started.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /meetings/{meetingId}/motions:
+    parameters: [{ $ref: "#/components/parameters/meetingId" }]
+    get:
+      operationId: listMeetingMotions
+      summary: Motions on the meeting's agenda
+      responses:
+        "200":
+          description: All motions of the meeting.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Motion" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      operationId: createMotion
+      summary: Add a motion to the agenda
+      description: Created in draft. 409 once the meeting is concluded or cancelled.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MotionInput" }
+      responses:
+        "201":
+          description: Created (draft).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Motion" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /motions/{motionId}:
+    parameters: [{ $ref: "#/components/parameters/motionId" }]
+    get:
+      operationId: getMotion
+      summary: One motion with its tally and open vote list
+      responses:
+        "200":
+          description: >
+            The motion. Motion votes are open (the show-of-hands
+            equivalent); election ballot choices never appear in any
+            response.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MotionDetail" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      operationId: updateMotion
+      summary: Amend a draft motion
+      description: >
+        Editable while draft only — 409 once voting has opened (the text
+        is frozen with its hash).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MotionInput" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Motion" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /motions/{motionId}/open-voting:
+    parameters: [{ $ref: "#/components/parameters/motionId" }]
+    post:
+      operationId: openMotionVoting
+      summary: Open voting on the motion
+      description: >
+        Freezes the resolution text with its SHA-256 text_hash and
+        snapshots the voter roll — the quorum denominator and the 403
+        boundary; later status or ownership changes do not add or remove
+        voters. 409 unless the meeting is in_progress and the motion is
+        draft.
+      responses:
+        "200":
+          description: Voting open.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Motion" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /motions/{motionId}/close-voting:
+    parameters: [{ $ref: "#/components/parameters/motionId" }]
+    post:
+      operationId: closeMotionVoting
+      summary: Close voting and compute the outcome
+      description: >
+        Quorum = ballots cast (including abstain) ≥ the configured
+        fraction of the frozen roll; the majority is computed over yes+no
+        only — simple is yes > no, special is yes ≥ 2/3 of yes+no; a tie
+        fails. Below quorum closes as failed with outcome_reason
+        quorum_not_met. 409 unless the motion is open.
+      responses:
+        "200":
+          description: Outcome computed — passed or failed, with the final tally.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Motion" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /motions/{motionId}/withdraw:
+    parameters: [{ $ref: "#/components/parameters/motionId" }]
+    post:
+      operationId: withdrawMotion
+      summary: Withdraw the motion
+      description: Allowed from draft or open, before close — 409 afterwards.
+      responses:
+        "200":
+          description: Withdrawn.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Motion" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /motions/{motionId}/votes:
+    parameters: [{ $ref: "#/components/parameters/motionId" }]
+    post:
+      operationId: castMotionVote
+      summary: Cast the caller's own vote on the motion
+      description: >
+        One member, one vote — final once cast (append-only). Voting is
+        authorized by the frozen roll, not capability claims — an EC
+        member on the roll votes here or on the mobile /me/meetings
+        surface interchangeably.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VoteInput" }
+      responses:
+        "201":
+          description: Vote recorded — returns the motion with its running tally.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Motion" }
+        "403":
+          description: Caller is not on the motion's frozen voter roll.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Voting is not open, or the caller has already voted (votes are final).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /motions/{motionId}/sign:
+    parameters: [{ $ref: "#/components/parameters/motionId" }]
+    post:
+      operationId: signResolution
+      summary: Sign the passed resolution (typed e-acknowledgment)
+      description: >
+        Records an append-only ResolutionSignature — signatory,
+        role_at_signing, signed_at, and the motion's frozen text_hash. No
+        signature images, no DSC. Signing is authorized by the signatory
+        configuration (meeting-config), not capability claims;
+        signatories may equally sign on the mobile surface. The motion
+        reaches signed once all required signatories have signed.
+      responses:
+        "200":
+          description: Signature recorded.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Motion" }
+        "403":
+          description: Caller is not a required signatory for this resolution.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Motion is not passed, or the caller has already signed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /resolutions:
+    get:
+      operationId: listResolutions
+      summary: The resolutions register
+      description: Passed and signed motions across meetings, newest first.
+      parameters:
+        - name: meeting_kind
+          in: query
+          schema: { type: string, enum: [gbm, project_gbm, ec, pc] }
+        - name: project_id
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string, enum: [passed, signed, all], default: all }
+        - name: from
+          in: query
+          schema: { type: string, format: date }
+          description: Filter on the voting-closed date.
+        - name: to
+          in: query
+          schema: { type: string, format: date }
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: Page of resolutions.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/Motion" }
+
+  /motions/{motionId}/minutes-export:
+    parameters: [{ $ref: "#/components/parameters/motionId" }]
+    post:
+      operationId: exportMotionMinutes
+      summary: Export the resolution/minutes PDF into the document registry
+      description: >
+        Renders the resolution — frozen text, tally, and signatures — as
+        a PDF registered under the seeded "AGM/EC meeting minutes"
+        category: society level, or project level for project_gbm/pc
+        meetings (Document Management spec). The registry holds the
+        artifact; the resolution itself (text, votes, signatures) stays
+        first-class data. 409 unless the motion is passed or signed.
+      responses:
+        "201":
+          description: Registered — returns the registry document.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Document" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  # ── Elections ──────────────────────────────────────────────────────────
+  /meetings/{meetingId}/election:
+    parameters: [{ $ref: "#/components/parameters/meetingId" }]
+    get:
+      operationId: getMeetingElection
+      summary: The meeting's election
+      responses:
+        "200":
+          description: The election with its contests.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Election" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      operationId: createMeetingElection
+      summary: Attach an election to the meeting (one per meeting)
+      description: >
+        EC elections attach to a gbm, PC elections to a project_gbm — 422
+        code election_kind_mismatch otherwise. An EC election gets one
+        contest per office (Executive Member with its seat_count); a PC
+        election one multi-seat contest. Created in draft.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, term_effective_from]
+              properties:
+                kind: { type: string, enum: [ec, pc] }
+                term_effective_from: { type: string, format: date }
+                seat_count:
+                  type: integer
+                  minimum: 1
+                  description: Executive Member seats for ec; seats of the single pc contest.
+      responses:
+        "201":
+          description: Created (draft).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Election" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: The meeting already has an election.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /elections/{electionId}:
+    parameters: [{ $ref: "#/components/parameters/electionId" }]
+    get:
+      operationId: getElection
+      summary: One election with contests, nominations, and declared results
+      responses:
+        "200":
+          description: >
+            The election. Ballot choices are never exposed by any API —
+            only tallies and counts.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Election" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /elections/{electionId}/open-nominations:
+    parameters: [{ $ref: "#/components/parameters/electionId" }]
+    post:
+      operationId: openElectionNominations
+      summary: Open nominations
+      description: 409 unless the election is draft.
+      responses:
+        "200":
+          description: Nominations open.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Election" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /elections/{electionId}/close-nominations:
+    parameters: [{ $ref: "#/components/parameters/electionId" }]
+    post:
+      operationId: closeElectionNominations
+      summary: Close nominations
+      description: 409 unless nominations are open.
+      responses:
+        "200":
+          description: Nominations closed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Election" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /elections/{electionId}/open-voting:
+    parameters: [{ $ref: "#/components/parameters/electionId" }]
+    post:
+      operationId: openElectionVoting
+      summary: Open election voting
+      description: >
+        Snapshots the voter roll (the same rules as motions). Ballots are
+        cast on the mobile surface only — never through this contract.
+        Uncontested contests (accepted candidates ≤ seats) skip voting.
+        409 unless nominations are closed and the meeting is in_progress.
+      responses:
+        "200":
+          description: Voting open.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Election" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /elections/{electionId}/close-voting:
+    parameters: [{ $ref: "#/components/parameters/electionId" }]
+    post:
+      operationId: closeElectionVoting
+      summary: Close election voting
+      description: 409 unless voting is open.
+      responses:
+        "200":
+          description: Voting closed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Election" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /elections/{electionId}/cancel:
+    parameters: [{ $ref: "#/components/parameters/electionId" }]
+    post:
+      operationId: cancelElection
+      summary: Cancel the election (before declare only)
+      responses:
+        "200":
+          description: Cancelled.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Election" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: The election has already been declared.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /elections/{electionId}/declare:
+    parameters: [{ $ref: "#/components/parameters/electionId" }]
+    post:
+      operationId: declareElection
+      summary: Declare results and write the tenure records
+      description: >
+        Computes per-contest results — top seat_count by votes;
+        uncontested candidates elected unopposed; zero-candidate contests
+        declared vacant (filled through the retained manual appointment
+        path) — and writes the same effective-from/to role-assignment
+        records manual EC/PC assignment writes, effective
+        term_effective_from, closing outgoing tenures, in one transaction
+        (Governance & Roles spec). 409 unless voting is closed (or
+        nominations closed with every contest uncontested).
+      responses:
+        "200":
+          description: Declared; tenure records written.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Election" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /elections/{electionId}/nominations:
+    parameters: [{ $ref: "#/components/parameters/electionId" }]
+    get:
+      operationId: listElectionNominations
+      summary: Nominations, per contest
+      parameters:
+        - name: contest_id
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: All nominations of the election.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Nomination" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      operationId: createNominationOnBehalf
+      summary: Enter a nomination on a candidate's behalf (Management)
+      description: >
+        The walk-in path — the acting admin user is recorded as
+        nominated_by (the ticket entered_by pattern); self-nomination
+        happens on the mobile surface. 409 unless nominations are open.
+        422 code candidate_ineligible if the candidate is not active or,
+        for pc contests, holds no ownership in the project.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NominationInput" }
+      responses:
+        "201":
+          description: Submitted.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Nomination" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /nominations/{nominationId}/withdraw:
+    parameters: [{ $ref: "#/components/parameters/nominationId" }]
+    post:
+      operationId: withdrawNomination
+      summary: Withdraw a nomination (before nominations close)
+      responses:
+        "200":
+          description: Withdrawn.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Nomination" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Nominations have closed, or the nomination is not submitted/accepted.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  # ── Meeting configuration ──────────────────────────────────────────────
+  /meeting-config:
+    get:
+      operationId: getMeetingConfig
+      summary: Per-society meeting configuration
+      responses:
+        "200":
+          description: Current configuration.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MeetingConfig" }
+    put:
+      operationId: replaceMeetingConfig
+      summary: Replace the meeting configuration (management)
+      description: >
+        Notice periods, quorum fractions, and required signatories per
+        meeting kind — the /ticket-routing pattern. Placeholder defaults
+        pending the pilot state's statutory values.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MeetingConfig" }
+      responses:
+        "200":
+          description: Replaced.
+        "422":
+          description: A meeting kind is missing, a quorum fraction is out of range, or a signatory role is unknown.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
   # ── Exports ────────────────────────────────────────────────────────────
   /exports/tally:
     post:
@@ -1845,6 +2556,26 @@ components:
       schema: { type: string }
     messageId:
       name: messageId
+      in: path
+      required: true
+      schema: { type: string }
+    meetingId:
+      name: meetingId
+      in: path
+      required: true
+      schema: { type: string }
+    motionId:
+      name: motionId
+      in: path
+      required: true
+      schema: { type: string }
+    electionId:
+      name: electionId
+      in: path
+      required: true
+      schema: { type: string }
+    nominationId:
+      name: nominationId
       in: path
       required: true
       schema: { type: string }
@@ -2521,3 +3252,340 @@ components:
           description: skipped = WhatsApp without opt-in (email-only fallback) — the recorded consent trail.
         detail: { type: [string, "null"], description: Failure reason or skip cause. }
         updated_at: { type: [string, "null"], format: date-time }
+
+    Meeting:
+      type: object
+      required: [meeting_id, kind, title, scheduled_at, status, convened_by]
+      properties:
+        meeting_id: { type: string }
+        kind: { type: string, enum: [gbm, project_gbm, ec, pc] }
+        project_id:
+          type: [string, "null"]
+          description: Required for project_gbm/pc; null otherwise.
+        title: { type: string }
+        agenda:
+          type: [string, "null"]
+          description: Free text — the votable items are the meeting's motions and election.
+        scheduled_at:
+          type: string
+          format: date-time
+          description: The configured notice period counts back from this (send-notice).
+        notice_sent_at: { type: [string, "null"], format: date-time }
+        status:
+          type: string
+          enum: [draft, notice_sent, in_progress, concluded, cancelled]
+          description: >
+            draft → notice_sent → in_progress → concluded; cancelled
+            before start only. The meeting is the decision window, not a
+            video call — it may stay in_progress across a multi-day
+            voting period.
+        convened_by: { type: string, description: Acting admin user (audit trail). }
+
+    MeetingInput:
+      type: object
+      description: >
+        On create, kind, title, and scheduled_at are required; project_id
+        is required for project_gbm/pc and must be absent otherwise. On
+        PATCH (draft only), kind and project_id are immutable.
+      properties:
+        kind: { type: string, enum: [gbm, project_gbm, ec, pc] }
+        project_id: { type: string }
+        title: { type: string }
+        agenda: { type: string }
+        scheduled_at: { type: string, format: date-time }
+
+    MeetingDetail:
+      allOf:
+        - $ref: "#/components/schemas/Meeting"
+        - type: object
+          properties:
+            motions:
+              type: array
+              description: >
+                Quorum progress against the frozen roll is read off each
+                motion's tally — ballots cast versus roll_size.
+              items: { $ref: "#/components/schemas/Motion" }
+            election:
+              type: [object, "null"]
+              description: Summary of the meeting's election; null when none.
+              required: [election_id, kind, status]
+              properties:
+                election_id: { type: string }
+                kind: { type: string, enum: [ec, pc] }
+                status: { type: string, enum: [draft, nominations_open, nominations_closed, voting_open, voting_closed, declared, cancelled] }
+
+    Motion:
+      type: object
+      required: [motion_id, meeting_id, title, text, majority, status]
+      properties:
+        motion_id: { type: string }
+        meeting_id: { type: string }
+        title: { type: string }
+        text: { type: string, description: The resolution text — frozen at open-voting. }
+        text_hash:
+          type: [string, "null"]
+          description: >
+            SHA-256 of the frozen text, set at open-voting — signatures
+            reference this hash. Null while draft.
+        majority:
+          type: string
+          enum: [simple, special]
+          description: >
+            simple — yes > no; special — yes ≥ 2/3 of yes+no. Which
+            motion types statutorily require special is an open question
+            (Meetings, Voting & Resolutions spec).
+        status:
+          type: string
+          enum: [draft, open, passed, failed, withdrawn, signed]
+          description: >
+            draft → open → passed | failed; withdrawn from draft or open;
+            passed → signed once all required signatories have signed.
+        voting_opened_at: { type: [string, "null"], format: date-time }
+        voting_closed_at: { type: [string, "null"], format: date-time }
+        tally:
+          $ref: "#/components/schemas/Tally"
+          description: Absent until voting opens.
+        signatures:
+          type: array
+          description: >
+            Append-only ResolutionSignatures collected while passed; the
+            required set per meeting kind comes from meeting-config.
+          items: { $ref: "#/components/schemas/ResolutionSignature" }
+
+    MotionInput:
+      type: object
+      description: >
+        On create, title, text, and majority are required. On PATCH
+        (draft only) all fields are optional; omitted fields are
+        unchanged.
+      properties:
+        title: { type: string }
+        text: { type: string }
+        majority: { type: string, enum: [simple, special] }
+
+    MotionDetail:
+      allOf:
+        - $ref: "#/components/schemas/Motion"
+        - type: object
+          properties:
+            votes:
+              type: array
+              description: >
+                The open vote list — motion votes are the e-equivalent of
+                a show of hands (identity + choice auditable). Election
+                ballots are secret and never appear in any response.
+              items:
+                type: object
+                required: [member_id, member_name, choice, cast_at]
+                properties:
+                  member_id: { type: string }
+                  member_name: { type: string }
+                  choice: { type: string, enum: ["yes", "no", abstain] }
+                  cast_at: { type: string, format: date-time }
+
+    Tally:
+      type: object
+      required: ["yes", "no", abstain, roll_size]
+      description: >
+        Quorum = ballots cast (yes+no+abstain) ≥ the configured fraction
+        of roll_size; abstain counts toward quorum, never toward the
+        majority, which is computed over yes+no only. A tie fails.
+      properties:
+        "yes": { type: integer }
+        "no": { type: integer }
+        abstain: { type: integer }
+        roll_size:
+          type: integer
+          description: Size of the roll frozen at open-voting — the quorum denominator.
+        outcome_reason:
+          type: [string, "null"]
+          enum: [quorum_not_met, majority_not_reached, null]
+          description: Set when the motion fails; null otherwise.
+
+    VoteInput:
+      type: object
+      required: [choice]
+      properties:
+        choice: { type: string, enum: ["yes", "no", abstain] }
+
+    ResolutionSignature:
+      type: object
+      required: [signatory_member_id, role_at_signing, signed_at, text_hash]
+      properties:
+        signatory_member_id: { type: string }
+        role_at_signing: { type: string, enum: [president, vice_president, general_secretary, treasurer, executive_member, pc_chair] }
+        signed_at: { type: string, format: date-time }
+        text_hash: { type: string, description: The frozen SHA-256 text hash the signatory acknowledged. }
+
+    Election:
+      type: object
+      required: [election_id, meeting_id, kind, status, term_effective_from, contests]
+      description: >
+        Ballot choices are stored but never exposed by any API — every
+        response carries only tallies, counts, and declared results.
+      properties:
+        election_id: { type: string }
+        meeting_id: { type: string }
+        kind: { type: string, enum: [ec, pc] }
+        status:
+          type: string
+          enum: [draft, nominations_open, nominations_closed, voting_open, voting_closed, declared, cancelled]
+          description: cancelled is reachable any time before declared.
+        nominations_open_at: { type: [string, "null"], format: date-time }
+        nominations_close_at: { type: [string, "null"], format: date-time }
+        term_effective_from:
+          type: string
+          format: date
+          description: declare writes the tenure records effective from this date.
+        contests:
+          type: array
+          items: { $ref: "#/components/schemas/Contest" }
+
+    Contest:
+      type: object
+      required: [contest_id, seat_count, nominations]
+      properties:
+        contest_id: { type: string }
+        office:
+          type: [string, "null"]
+          enum: [president, vice_president, general_secretary, treasurer, executive_member, null]
+          description: >
+            EC elections have one contest per office; null for the single
+            multi-seat pc contest.
+        seat_count:
+          type: integer
+          minimum: 1
+          description: >
+            1 per EC office except the configured Executive Member count;
+            each voter selects up to seat_count candidates.
+        nominations:
+          type: array
+          items: { $ref: "#/components/schemas/Nomination" }
+        outcome:
+          type: [string, "null"]
+          enum: [contested, uncontested, vacant, null]
+          description: >
+            Set at declare — uncontested contests (accepted candidates ≤
+            seats) skip voting and are elected unopposed; zero-candidate
+            contests are vacant, filled through the retained manual
+            appointment path. Null until declared.
+        results:
+          type: array
+          description: >
+            Per-candidate result, present once declared — the top
+            seat_count by votes are elected.
+          items:
+            type: object
+            required: [candidate_member_id, elected]
+            properties:
+              candidate_member_id: { type: string }
+              candidate_name: { type: string }
+              votes:
+                type: [integer, "null"]
+                description: Null when the contest was uncontested (no poll held).
+              elected: { type: boolean }
+
+    Nomination:
+      type: object
+      required: [nomination_id, contest_id, candidate_member_id, nominated_by, status]
+      properties:
+        nomination_id: { type: string }
+        contest_id: { type: string }
+        candidate_member_id: { type: string }
+        candidate_name: { type: string }
+        nominated_by:
+          type: string
+          description: >
+            The candidate (self-nomination via mobile) or the acting
+            admin user for on-behalf entry — the ticket entered_by
+            pattern.
+        status:
+          type: string
+          enum: [submitted, accepted, withdrawn, rejected]
+          description: >
+            rejected = eligibility failure — not active or, for pc
+            contests, no ownership in the project.
+
+    NominationInput:
+      type: object
+      required: [contest_id, candidate_member_id]
+      properties:
+        contest_id: { type: string }
+        candidate_member_id: { type: string }
+
+    ElectionVoteInput:
+      type: object
+      description: >
+        The election ballot shape — documented for parity with the mobile
+        surface (/me/elections), where all election ballots are cast; the
+        admin panel never casts one. Ballots are secret — choices are
+        stored but never echoed in any response, only tallies and counts.
+      required: [choices]
+      properties:
+        choices:
+          type: array
+          minItems: 1
+          description: One entry per contest the voter ballots in.
+          items:
+            type: object
+            required: [contest_id, candidate_member_ids]
+            properties:
+              contest_id: { type: string }
+              candidate_member_ids:
+                type: array
+                minItems: 1
+                description: Up to the contest's seat_count distinct candidates.
+                items: { type: string }
+
+    MeetingConfig:
+      type: object
+      required: [notice_period_days, quorum_fraction, required_signatories]
+      description: >
+        Per-society configuration, state-parameterized like compliance
+        values — placeholder defaults pending the pilot state's statutory
+        values (Meetings, Voting & Resolutions spec).
+      properties:
+        notice_period_days:
+          type: object
+          description: Minimum days between send-notice and scheduled_at, per meeting kind.
+          required: [gbm, project_gbm, ec, pc]
+          properties:
+            gbm: { type: integer, minimum: 0 }
+            project_gbm: { type: integer, minimum: 0 }
+            ec: { type: integer, minimum: 0 }
+            pc: { type: integer, minimum: 0 }
+        quorum_fraction:
+          type: object
+          description: >
+            Fraction of the frozen roll whose ballots (including abstain)
+            constitute quorum, per meeting kind.
+          required: [gbm, project_gbm, ec, pc]
+          properties:
+            gbm: { type: number, exclusiveMinimum: 0, maximum: 1 }
+            project_gbm: { type: number, exclusiveMinimum: 0, maximum: 1 }
+            ec: { type: number, exclusiveMinimum: 0, maximum: 1 }
+            pc: { type: number, exclusiveMinimum: 0, maximum: 1 }
+        required_signatories:
+          type: object
+          description: >
+            Roles that must sign a passed resolution, per meeting kind.
+            Defaults — gbm/ec — president + general_secretary;
+            project_gbm/pc — pc_chair.
+          required: [gbm, project_gbm, ec, pc]
+          properties:
+            gbm:
+              type: array
+              minItems: 1
+              items: { type: string, enum: [president, vice_president, general_secretary, treasurer, executive_member, pc_chair] }
+            project_gbm:
+              type: array
+              minItems: 1
+              items: { type: string, enum: [president, vice_president, general_secretary, treasurer, executive_member, pc_chair] }
+            ec:
+              type: array
+              minItems: 1
+              items: { type: string, enum: [president, vice_president, general_secretary, treasurer, executive_member, pc_chair] }
+            pc:
+              type: array
+              minItems: 1
+              items: { type: string, enum: [president, vice_president, general_secretary, treasurer, executive_member, pc_chair] }

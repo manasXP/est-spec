@@ -3,9 +3,9 @@ type: Specification
 title: Communication
 description: Bulletin boards at society (EC) and project (PC) level, and direct member messaging via email and WhatsApp.
 status: Draft
-version: 0.3.0
+version: 0.4.0
 owner: Manas Pradhan
-timestamp: 2026-07-20T00:00:00Z
+timestamp: 2026-07-21T00:00:00Z
 tags: [communication, bulletin, messaging, email, whatsapp]
 ---
 
@@ -58,6 +58,10 @@ Both are **one-way, society-to-member** channels in v1. A member's response is a
 |---|---|
 | **Email** | AWS SES from the [AWS Blocks backend](/architecture/aws-blocks-backend.md) — natural fit, per-society sender identity |
 | **WhatsApp** | WhatsApp Business Platform. Business-initiated messages require **pre-approved message templates** and member **opt-in** (Meta policy). Consumed through a **provider-neutral boundary** — the Razorpay pattern from [Payments](/specifications/payments.md); provider decided 2026-07-20: **Meta Cloud API direct** ([[EST-Design/whatsapp-provider|WhatsApp Provider]]) |
+
+# Meeting notices (added 2026-07-21)
+
+Meeting notices from [Meetings, Voting & Resolutions](/specifications/meetings-and-voting.md) ride on this surface: a meeting's `send-notice` action publishes a **pinned bulletin post** to the meeting's audience board (society board for `gbm`/`ec` meetings, project board for `project_gbm`/`pc`) with the standard new-post push notification, and optionally a **direct message** (email/WhatsApp) to the roll. The per-recipient **delivery log doubles as the notice audit trail** — the record that members were informed of the meeting. The existing boundary stands: statutory notice forms follow whatever the law requires; this channel does not replace them.
 
 # Surfaces
 

@@ -10,5 +10,6 @@
 * [Member Requests (Ticketing)](member-requests.md) - Member-raised tickets for finance, maintenance, and records queries — entity, lifecycle, routing, and surfaces.
 * [Communication](communication.md) - Bulletin boards at society (EC) and project (PC) level, and direct member messaging via email and WhatsApp.
 * [Asset Management](asset-management.md) - The asset registry — flats, plots, villas, dividend holdings — and role-based visibility across members, EC, PCs, and employees.
+* [Meetings, Voting & Resolutions](meetings-and-voting.md) - In-app meetings, e-voting on resolutions at society and project level, EC and PC elections, and typed e-signing of resolutions.
 * [Platforms](platforms.md) - The client surfaces — admin panel, landing site, iOS and Android mobile apps — and who uses which.
 * [Development Process](development-process.md) - TDD mandate and the per-layer test toolchains every Estatly codebase follows.

@@ -1,18 +1,18 @@
 ---
 type: API Contract
 title: Admin Panel API
-description: REST contract for the admin panel — member & ownership administration, the asset registry, charges, the vendor work-order/invoice workflow, books of account, documents, member-request triage, communication, and Tally export.
+description: REST contract for the admin panel — member & ownership administration, the asset registry, charges, the vendor work-order/invoice workflow, books of account, documents, member-request triage, communication, meetings & voting, and Tally export.
 status: Draft
-version: 0.7.0
+version: 0.8.0
 owner: Manas Pradhan
-timestamp: 2026-07-20T00:00:00Z
+timestamp: 2026-07-21T00:00:00Z
 tags: [api, rest, admin, management]
 resource: ./openapi.yaml
 ---
 
 # Scope
 
-The REST surface for the **admin panel** web app, used by Management, the EC, and designated employees ([Platforms](/specifications/platforms.md)). It administers everything the [mobile API](/api/mobile/public-api.md) only reads: members, projects, ownerships, the asset registry, charges, vendors, work orders, invoices, employees, the four books, documents, communication (bulletin posts and direct messages), and exports.
+The REST surface for the **admin panel** web app, used by Management, the EC, and designated employees ([Platforms](/specifications/platforms.md)). It administers everything the [mobile API](/api/mobile/public-api.md) only reads: members, projects, ownerships, the asset registry, charges, vendors, work orders, invoices, employees, the four books, documents, communication (bulletin posts and direct messages), meetings & voting (meetings, motions, elections, the resolutions register), and exports.
 
 Machine-readable contract: [OpenAPI 3.1](openapi.yaml) (draft, authoritative once implementation starts).
 
@@ -135,6 +135,33 @@ Bulletin-post composing and direct member messaging. Society posts require an **
 
 The `Member` schemas gain **`whatsapp_opt_in`** — normally set by the member at onboarding (mobile `PUT /me/whatsapp-consent`); editable here for offline written consent.
 
+## Meetings, voting & resolutions ([Meetings, Voting & Resolutions](/specifications/meetings-and-voting.md))
+
+Convening and running meetings, motions, and elections. Convening `gbm`/`ec` meetings requires an **EC role**; `project_gbm`/`pc` meetings Management or an EC role — `403` code `capability_required` otherwise. **Voting and signing are authorized by the frozen roll and the signatory configuration, not capability claims** — an EC member on the roll votes here or on the mobile `/me/meetings` surface interchangeably; the same 403/409 semantics apply on both. All state transitions are explicit `POST` sub-resources per the convention above.
+
+| Method & path | Purpose |
+|---|---|
+| `GET`/`POST /v1/meetings` | List (filters `kind`, `project_id`, `status`) / convene a meeting (`kind ∈ gbm \| project_gbm \| ec \| pc`; `project_id` required for project kinds) |
+| `GET`/`PATCH /v1/meetings/{meetingId}` | Detail with motions, election summary, quorum progress against the frozen roll; PATCH while `draft` only (409 after notice) |
+| `POST /v1/meetings/{meetingId}/send-notice` | Publish the notice — pinned bulletin post + push + optional direct message ([Communication](/specifications/communication.md)); 422 if the configured notice period cannot be met before `scheduled_at` |
+| `POST /v1/meetings/{meetingId}/start` · `/conclude` · `/cancel` | Lifecycle; `conclude` 409 while any motion is `open` or an election is undeclared; `cancel` before start only, re-notifies a noticed audience |
+| `GET`/`POST /v1/meetings/{meetingId}/motions` | Motions on the agenda / add one (title, text, `majority ∈ simple \| special`) |
+| `GET`/`PATCH /v1/motions/{motionId}` | Detail with tally and vote list (motion votes are open); PATCH while `draft` only |
+| `POST /v1/motions/{motionId}/open-voting` | Freezes text + SHA-256 hash, snapshots the voter roll; 409 unless the meeting is `in_progress` |
+| `POST /v1/motions/{motionId}/close-voting` | Computes the outcome — quorum from ballots cast (incl. abstain), majority over yes+no, tie fails; records `outcome_reason` |
+| `POST /v1/motions/{motionId}/withdraw` | From `draft` or `open`, before close |
+| `POST /v1/motions/{motionId}/votes` | Cast the **caller's own** vote (`yes \| no \| abstain`) — 403 if not on the frozen roll, 409 on duplicate or when not `open` |
+| `POST /v1/motions/{motionId}/sign` | Typed e-acknowledgment by a required signatory — records signatory, role, and the frozen `text_hash`; 403 unless a required signatory, 409 unless `passed`; `signed` once all required signatories have signed |
+| `GET /v1/resolutions` | The resolutions register — passed/signed motions across meetings; filters `meeting_kind`, `project_id`, `status`, date range |
+| `POST /v1/motions/{motionId}/minutes-export` | Export the signed resolution/minutes PDF into the [document registry](/specifications/document-management.md) ("AGM/EC meeting minutes" category; project level for project kinds) |
+| `GET`/`POST /v1/meetings/{meetingId}/election` | The meeting's election (one per meeting: `ec` on a `gbm`, `pc` on a `project_gbm`) with its contests |
+| `GET /v1/elections/{electionId}` | Detail — contests, accepted nominations, tallies once declared; **ballot choices are never exposed** |
+| `POST /v1/elections/{electionId}/open-nominations` · `/close-nominations` · `/open-voting` · `/close-voting` · `/cancel` | Lifecycle; voting opens only while the meeting is `in_progress`; uncontested contests skip voting |
+| `POST /v1/elections/{electionId}/declare` | Declares results and **writes the tenure-history role assignments** (effective `term_effective_from`, closes outgoing tenures) in one transaction; vacant contests fall back to manual appointment |
+| `GET`/`POST /v1/elections/{electionId}/nominations` | Nominations per contest; POST is Management **on-behalf** entry (walk-ins, `nominated_by` recorded — the ticket `entered_by` pattern); 422 on eligibility failure (not `active`; for `pc`, no ownership in the project) |
+| `POST /v1/nominations/{nominationId}/withdraw` | Before nominations close |
+| `GET`/`PUT /v1/meeting-config` | Per-society notice periods, quorum fractions, and required signatories per meeting kind (management; the `/ticket-routing` pattern) |
+
 ## Exports
 
 | Method & path | Purpose |
@@ -155,4 +182,5 @@ The `Member` schemas gain **`whatsapp_opt_in`** — normally set by the member a
 - ~~Member requests~~ **decided 2026-07-20 (v0.5.0):** ticketing surface added per [Member Requests](/specifications/member-requests.md) — triage queue, on-behalf entry with `entered_by`, assignment over category-based routing (`/v1/ticket-routing`), staff replies, resolve with mandatory note (7-day auto-close), informational work-order linking. Ticket state changes follow the explicit-`POST`-sub-resource convention; tickets are never deleted.
 - ~~Communication~~ **decided 2026-07-20 (v0.6.0):** society bulletin posting (EC), post moderation/archive, and direct member messaging via email/WhatsApp with a per-recipient/per-channel delivery log, per [Communication](/specifications/communication.md). WhatsApp goes through the society's pre-approved notice template and only to opted-in members; `whatsapp_opt_in` added to the Member schemas. Project-board posting lives on the mobile `/pc` surface, not here.
 - ~~Assets~~ **decided 2026-07-20 (v0.7.0):** first-class asset registry per [Asset Management](/specifications/asset-management.md) — `/v1/assets` with visibility-scoped reads (Management/EC all projects, granted employees theirs), owner history on the detail view, and audited edits. The `Ownership` schemas reference **`asset_id`** (embedded `asset_type`/`asset_label` dropped); ownership create assigns an existing asset and transfer re-points the asset's `current_ownership`. Employee grants via `GET`/`PUT /v1/employees/{employeeId}/asset-view-grants`.
+- ~~Meetings & voting~~ **added 2026-07-21 (v0.8.0):** meetings, motions, elections, and the resolutions register per [Meetings, Voting & Resolutions](/specifications/meetings-and-voting.md) — the system is the ballot box. Open-voting freezes the resolution text (SHA-256 hash) and snapshots the roll; votes are final (409 on re-vote); election `declare` writes the tenure-history records the manual `PUT …/committee` path also writes (that endpoint remains for casual vacancies and dissolution); signing is a typed e-acknowledgment against the frozen hash. Amends the 2026-07-20 offline-elections decisions in [Governance & Roles](/specifications/governance-and-roles.md).
 - Whether admin auth requires MFA / IP restriction is a deployment decision, not contract-level.

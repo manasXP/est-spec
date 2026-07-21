@@ -1,12 +1,15 @@
 openapi: 3.1.0
 info:
   title: Estatly Mobile Public API
-  version: 0.8.0
+  version: 0.9.0
   description: >
     REST contract for the mobile app (draft). Narrative and conventions:
     public-api.md beside this file. /me endpoints are scoped to the
     authenticated member via a Cognito-issued JWT — including /me/tickets,
-    the member-request surface, and /me/bulletin, the bulletin-board feed;
+    the member-request surface, /me/bulletin, the bulletin-board feed,
+    and /me/meetings, the roll-scoped meetings & voting surface (motions,
+    elections, resolution signing — election ballot choices are never
+    returned by any endpoint);
     /ec endpoints additionally
     require the designated-approver capability (403 capability_required);
     /pc endpoints require a seat on the project's PC and are read-only
@@ -524,6 +527,230 @@ paths:
               schema: { $ref: "#/components/schemas/Member" }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
+  /me/meetings:
+    get:
+      operationId: listMeetings
+      summary: The member's meetings (roll-scoped)
+      description: >
+        Exactly the meetings whose voter roll the caller is on (or will be
+        on) — GBMs, project GBMs of owned projects, and EC/PC meetings for
+        seat holders (Meetings, Voting & Resolutions spec, 2026-07-21).
+        Draft meetings are admin-panel-only; a meeting appears here once
+        its notice is sent.
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [notice_sent, in_progress, concluded, cancelled, all], default: all }
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: Page of meetings.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Meeting" }
+                  next_cursor:
+                    type: [string, "null"]
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /me/meetings/{meetingId}:
+    parameters: [{ $ref: "#/components/parameters/meetingId" }]
+    get:
+      operationId: getMeeting
+      summary: One meeting — agenda, motions, election, and the caller's cast state
+      description: >
+        Motions carry status, tally, and the caller's own vote (motion
+        votes are open — the show-of-hands equivalent); the attached
+        election carries contests, accepted candidates, and the caller's
+        cast/not-cast flag per contest. Election tallies appear only once
+        the election is declared; ballot choices are never returned by
+        any endpoint. 403 if the caller is not on the meeting's roll.
+      responses:
+        "200":
+          description: The meeting.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MeetingDetail" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /me/motions/{motionId}/votes:
+    parameters: [{ $ref: "#/components/parameters/motionId" }]
+    post:
+      operationId: castMotionVote
+      summary: Cast the caller's vote on a motion
+      description: >
+        Final once cast — votes are append-only, unique per (motion,
+        voter), authorized by the roll frozen at open-voting. Abstain
+        counts toward quorum, never toward the majority.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VoteInput" }
+      responses:
+        "201":
+          description: Vote recorded; the motion reflects the updated tally and my_vote.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Motion" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Already voted on this motion, or voting is not open.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /me/motions/{motionId}/sign:
+    parameters: [{ $ref: "#/components/parameters/motionId" }]
+    post:
+      operationId: signMotion
+      summary: Sign the passed resolution (typed e-acknowledgment)
+      description: >
+        Records an append-only ResolutionSignature — signatory,
+        role_at_signing, signed_at — against the motion's frozen
+        text_hash. No signature images, no DSC. The resolution reaches
+        signed once all required signatories (configurable per meeting
+        kind; defaults President + General Secretary for gbm/ec, PC Chair
+        for project_gbm/pc) have signed.
+      responses:
+        "201":
+          description: Signature recorded; the motion reflects its updated status.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Motion" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Motion is not passed (only passed motions can be signed), or the caller has already signed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /me/elections/{electionId}:
+    parameters: [{ $ref: "#/components/parameters/electionId" }]
+    get:
+      operationId: getElection
+      summary: One election — contests, candidates, and the caller's voted flags
+      description: >
+        Election ballots are secret: choices are stored but never returned
+        by any endpoint — only the caller's own cast/not-cast flag per
+        contest, and per-candidate tallies once the election is declared.
+        403 if the caller is not on the election's roll.
+      responses:
+        "200":
+          description: The election.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Election" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /me/elections/{electionId}/nominations:
+    parameters: [{ $ref: "#/components/parameters/electionId" }]
+    post:
+      operationId: createNomination
+      summary: Self-nominate for a contest
+      description: >
+        The candidate is the authenticated caller — walk-in nominations
+        are entered on-behalf by Management on the admin panel (the ticket
+        entered_by pattern). Allowed only during the nomination window.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NominationInput" }
+      responses:
+        "201":
+          description: Nomination submitted.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Nomination" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Nominations are not open (outside the nomination window).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "422":
+          description: >-
+            Ineligible — the caller is not active, or (PC contest) holds no
+            ownership in the project; or unknown contest_id, or the caller
+            already has a live nomination in this contest.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /me/nominations/{nominationId}/withdraw:
+    parameters: [{ $ref: "#/components/parameters/nominationId" }]
+    post:
+      operationId: withdrawNomination
+      summary: Withdraw the caller's own nomination
+      responses:
+        "200":
+          description: Withdrawn.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Nomination" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Nominations have closed (withdrawal is only allowed before close).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /me/elections/{electionId}/votes:
+    parameters: [{ $ref: "#/components/parameters/electionId" }]
+    post:
+      operationId: castElectionBallot
+      summary: Cast the caller's ballot — one immutable submission
+      description: >
+        A single submission covering the caller's choices per contest —
+        up to seat_count selections in a multi-seat contest. Immutable
+        once cast, authorized by the roll frozen at voting open. Choices
+        are stored but never returned by any endpoint.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ElectionBallotInput" }
+      responses:
+        "201":
+          description: >-
+            Ballot recorded. The response carries only the updated
+            my_ballot_cast flags — never the choices.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Election" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Already voted in this election, or voting is not open.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "422":
+          description: >-
+            Unknown contest or candidate, or more selections than the
+            contest's seat_count.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
   /ec/invoices:
     get:
       operationId: listApprovalInbox
@@ -920,6 +1147,26 @@ components:
       in: path
       required: true
       schema: { type: string }
+    meetingId:
+      name: meetingId
+      in: path
+      required: true
+      schema: { type: string }
+    motionId:
+      name: motionId
+      in: path
+      required: true
+      schema: { type: string }
+    electionId:
+      name: electionId
+      in: path
+      required: true
+      schema: { type: string }
+    nominationId:
+      name: nominationId
+      in: path
+      required: true
+      schema: { type: string }
 
   responses:
     Unauthorized:
@@ -932,7 +1179,9 @@ components:
         Caller lacks the capability required for this action (code
         capability_required) — on the EC surface, designated approver for
         normal approve/reject and any EC member for override; on the PC
-        surface, a seat on the project's PC.
+        surface, a seat on the project's PC; on the meetings surface,
+        presence on the frozen voter roll (reads and voting) or being a
+        required signatory (signing).
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
@@ -1268,3 +1517,218 @@ components:
           type: array
           items: { type: string }
           description: Project-level registry documents of this project.
+
+    Meeting:
+      type: object
+      required: [meeting_id, kind, title, scheduled_at, status]
+      properties:
+        meeting_id: { type: string }
+        kind:
+          type: string
+          enum: [gbm, project_gbm, ec, pc]
+          description: >
+            Determines the voter roll — gbm: all active members;
+            project_gbm: active members owning in the project; ec/pc:
+            current seat holders (Meetings, Voting & Resolutions spec).
+        project_id:
+          type: [string, "null"]
+          description: Set for project_gbm/pc meetings; null otherwise.
+        project_name: { type: [string, "null"] }
+        title: { type: string }
+        agenda:
+          type: string
+          description: Free text; the votable items are the meeting's motions and election.
+        scheduled_at: { type: string, format: date-time }
+        status:
+          type: string
+          enum: [draft, notice_sent, in_progress, concluded, cancelled]
+          description: >
+            draft meetings are admin-panel-only — members see a meeting
+            from notice_sent onward. A meeting may stay in_progress across
+            a multi-day voting window.
+
+    MeetingDetail:
+      allOf:
+        - $ref: "#/components/schemas/Meeting"
+        - type: object
+          required: [motions]
+          properties:
+            motions:
+              type: array
+              items: { $ref: "#/components/schemas/Motion" }
+            election:
+              description: >
+                The attached election, if any — EC elections on a gbm,
+                PC elections on a project_gbm; null otherwise.
+              oneOf:
+                - $ref: "#/components/schemas/Election"
+                - type: "null"
+
+    Motion:
+      type: object
+      required: [motion_id, title, text, majority, status]
+      properties:
+        motion_id: { type: string }
+        title: { type: string }
+        text: { type: string, description: The resolution text — frozen at open-voting. }
+        text_hash:
+          type: [string, "null"]
+          description: >
+            SHA-256 of the text, frozen at open-voting — signatures
+            reference this hash. Null while draft.
+        majority:
+          type: string
+          enum: [simple, special]
+          description: >
+            simple — yes > no; special — yes ≥ 2/3 of yes+no. Computed
+            over yes+no only; abstain never counts toward it; a tie fails.
+        status: { type: string, enum: [draft, open, passed, failed, withdrawn, signed] }
+        voting_opened_at: { type: [string, "null"], format: date-time }
+        voting_closed_at: { type: [string, "null"], format: date-time }
+        tally:
+          type: [object, "null"]
+          description: >
+            Live counts while open, final on close — motion votes are open,
+            the show-of-hands equivalent. Null while draft. Quorum =
+            ballots cast (including abstain) ≥ the configured fraction of
+            roll_size.
+          required: ["yes", "no", abstain, roll_size]
+          properties:
+            "yes": { type: integer }
+            "no": { type: integer }
+            abstain: { type: integer }
+            roll_size:
+              type: integer
+              description: Size of the roll frozen at open-voting — the quorum denominator.
+            outcome_reason:
+              type: [string, "null"]
+              description: Set on failed — e.g. quorum_not_met, majority_not_reached. Null otherwise.
+        my_vote:
+          type: [string, "null"]
+          enum: ["yes", "no", abstain, null]
+          description: >
+            The caller's own vote — visible because motion votes are open.
+            Null until cast.
+
+    VoteInput:
+      type: object
+      required: [choice]
+      properties:
+        choice: { type: string, enum: ["yes", "no", abstain] }
+
+    Election:
+      type: object
+      required: [election_id, kind, status, contests]
+      properties:
+        election_id: { type: string }
+        kind:
+          type: string
+          enum: [ec, pc]
+          description: EC elections attach to a gbm, PC elections to a project_gbm.
+        status:
+          type: string
+          enum: [draft, nominations_open, nominations_closed, voting_open, voting_closed, declared, cancelled]
+        nominations_open_at: { type: [string, "null"], format: date-time }
+        nominations_close_at: { type: [string, "null"], format: date-time }
+        term_effective_from:
+          type: [string, "null"]
+          format: date
+          description: Declaration writes the tenure-history records effective this date.
+        contests:
+          type: array
+          items: { $ref: "#/components/schemas/Contest" }
+
+    Contest:
+      type: object
+      required: [contest_id, seat_count, candidates, my_ballot_cast]
+      properties:
+        contest_id: { type: string }
+        office:
+          type: [string, "null"]
+          enum: [president, vice_president, general_secretary, treasurer, executive_member, null]
+          description: >
+            The EC office contested — one contest per office in an EC
+            election; null for the PC multi-seat contest.
+        seat_count:
+          type: integer
+          minimum: 1
+          description: Seats in this contest; a voter selects up to seat_count candidates.
+        candidates:
+          type: array
+          description: Accepted nominations only.
+          items:
+            type: object
+            required: [nomination_id, member_id, name]
+            properties:
+              nomination_id: { type: string }
+              member_id: { type: string }
+              name: { type: string }
+        results:
+          type: [array, "null"]
+          description: >
+            Per-candidate tallies and elected flags — null until the
+            election is declared (ballots are secret). An uncontested
+            contest declares its candidates elected unopposed with null
+            vote counts; a zero-candidate contest is declared vacant
+            (empty array).
+          items:
+            type: object
+            required: [member_id, name, elected]
+            properties:
+              member_id: { type: string }
+              name: { type: string }
+              votes:
+                type: [integer, "null"]
+                description: Null for an unopposed declaration (no vote taken).
+              elected: { type: boolean }
+        my_ballot_cast:
+          type: boolean
+          description: >
+            Whether the caller has submitted their ballot for this contest —
+            never the choices; ballot choices are not exposed by any
+            endpoint.
+
+    Nomination:
+      type: object
+      required: [nomination_id, contest_id, status, submitted_at]
+      properties:
+        nomination_id: { type: string }
+        contest_id: { type: string }
+        status:
+          type: string
+          enum: [submitted, accepted, withdrawn, rejected]
+          description: >
+            rejected = eligibility failure — not active; for PC contests,
+            no ownership in the project.
+        submitted_at: { type: string, format: date-time }
+
+    NominationInput:
+      type: object
+      description: Self-nomination — the candidate is the authenticated caller.
+      required: [contest_id]
+      properties:
+        contest_id: { type: string }
+
+    ElectionBallotInput:
+      type: object
+      description: >
+        The caller's entire ballot — one immutable submission covering
+        their choices per contest. Choices are stored but never returned
+        by any endpoint.
+      required: [selections]
+      properties:
+        selections:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [contest_id, candidate_member_ids]
+            properties:
+              contest_id: { type: string }
+              candidate_member_ids:
+                type: array
+                minItems: 1
+                items: { type: string }
+                description: >
+                  Up to the contest's seat_count selections; exactly one
+                  for a single-seat office.
