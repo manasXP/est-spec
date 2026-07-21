@@ -9,7 +9,7 @@ Specifications for Estatly, a single-society housing-society management SaaS.
   - `architecture/` — backend (AWS Blocks) and platform architecture
   - `api/` — API contracts, one folder per client surface (admin, mobile)
   - `references/` — pointers to external knowledge
-- `diagrams/` — spec diagrams (currently empty)
+- `diagrams/` — ERDs of the full data model: `estatly-erd.drawio` (10 pages, one per logical group; open with [draw.io](https://app.diagrams.net)) and browsable renders in `diagrams/svg/`
 
 ## How to review
 
@@ -18,7 +18,8 @@ This repo is open for spec review. Suggested path through the bundle:
 1. **Start:** `okf-bundle/index.md` — the bundle map.
 2. **Scope:** `okf-bundle/specifications/product-overview.md` — what Estatly is (and isn't).
 3. **Domain:** `okf-bundle/specifications/domain-model.md` — society, members, ownerships, finance.
-4. Then follow whatever pulls you in: `architecture/` (AWS Blocks backend, single stack per society) or `api/` (admin and mobile REST contracts).
+4. **Data model:** `diagrams/svg/01-overview.svg`, then the per-group ERD pages (same content as the editable `diagrams/estatly-erd.drawio`).
+5. Then follow whatever pulls you in: `architecture/` (AWS Blocks backend, single stack per society) or `api/` (admin and mobile REST contracts).
 
 Feedback we're looking for:
 
