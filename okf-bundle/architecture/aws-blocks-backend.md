@@ -34,7 +34,7 @@ Blocks evaluated and **not** needed for v1: `Agent` / `KnowledgeBase` (no AI fea
 
 # Standing cautions (from the skill)
 
-- **Block IDs are immutable once deployed** — renaming a stateful Block's ID (Database, FileBucket) recreates the resource and loses data. Fix IDs early: e.g. `estatly/db`, `estatly/documents`.
+- **Block IDs are immutable once deployed** — renaming a stateful Block's ID (Database, FileBucket) recreates the resource and loses data. Fix IDs early: e.g. `estatly-db`, `estatly-documents` (`fullId` joins scope and block ID with a hyphen — verified against Blocks v0.2.3, STR-001).
 - Keep all Blocks and the API in the IFC layer; drop to the CDK layer only where no Block fits (e.g. `Hosting`, payment-webhook ingress specifics).
 - Local-first development: `npm run dev` runs with no AWS account; use `sandbox` only for behavior that differs on real AWS.
 
